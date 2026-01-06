@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-Ray Circuit Simulation</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f0f0f; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        .container { background: #1a1a1a; padding: 20px; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.7); max-width: 900px; width: 100%; border: 1px solid #333; }
+        canvas { background: #000; border-radius: 8px; width: 100%; height: 500px; display: block; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; padding: 20px; background: #252525; border-radius: 8px; }
+        .label-group { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; }
+        .kv-text { color: #ff3333; }
+        .ma-text { color: #ffcc00; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #00ffcc; }
+        .info-panel { margin-top: 20px; font-size: 0.9em; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-top: 1px solid #444; padding-top: 15px; }
+        h2 { margin-top: 0; color: #00ffcc; text-align: center; text-transform: uppercase; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>X-Ray Production & Circuitry</h2>
+    <canvas id="circuitCanvas"></canvas>
+
+    <div class="controls">
+        <div>
+            <div class="label-group"><span>Filament Control (Quantity)</span> <span class="ma-text" id="ma-display">10 mA</span></div>
+            <input type="range" id="current" min="2" max="50" value="10">
+        </div>
+        <div>
+            <div class="label-group"><span>Exposure Voltage (Quality)</span> <span class="kv-text" id="kv-display">50 kV</span></div>
+            <input type="range" id="voltage" min="30" max="150" value="50">
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <div>
+            <strong class="ma-text">Yellow Circuit:</strong> Low voltage filament circuit. Adjusting mA increases heat, creating more electrons (Intensity).
+        </div>
+        <div>
+            <strong class="kv-text">Red Circuit:</strong> High voltage tube circuit. Adjusting kV increases electron speed, creating more energetic X-rays (Penetration).
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('circuitCanvas');
+    const ctx = canvas.getContext('2d');
+    const voltIn = document.getElementById('voltage');
+    const currIn = document.getElementById('current');
+
+    canvas.width = 900;
+    canvas.height = 500;
+
+    let electrons = [];
+    let xrays = [];
+
+    function drawCircuit(kV, mA) {
+        // --- Tube Envelope ---
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(300, 150, 400, 200, 40);
+        ctx.stroke();
+
+        // --- FILAMENT CIRCUIT (Yellow) ---
+        ctx.strokeStyle = `rgba(255, 204, 0, ${0.3 + mA/100})`;
+        ctx.lineWidth = 3;
+        // Wiring to Filament
+        ctx.beginPath();
+        ctx.moveTo(50, 400); ctx.lineTo(150, 400); // Power in
+        ctx.lineTo(150, 230); ctx.lineTo(315, 230); // To Cathode top
+        ctx.moveTo(150, 400); ctx.lineTo(150, 270); ctx.lineTo(315, 270); // To Cathode bottom
+        ctx.stroke();
+
+        // Transformer Symbol (Filament)
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText("Filament Xfmr", 100, 350);
+        for(let i=0; i<5; i++) {
+            ctx.beginPath(); ctx.arc(150, 360 + i*8, 6, 0, Math.PI*2); ctx.stroke();
+        }
+
+        // --- HIGH VOLTAGE CIRCUIT (Red) ---
+        ctx.strokeStyle = `rgba(255, 50, 50, ${0.2 + kV/200})`;
+        ctx.beginPath();
+        ctx.moveTo(850, 450); ctx.lineTo(750, 450); // Power in
+        ctx.lineTo(750, 250); ctx.lineTo(670, 250); // To Anode
+        ctx.moveTo(750, 450); ctx.lineTo(150, 450); ctx.lineTo(150, 250); // Connection to Cathode circuit
+        ctx.stroke();
+
+        // Transformer Symbol (Step-up)
+        ctx.fillStyle = '#ff3333';
+        ctx.fillText("Step-Up Xfmr", 710, 400);
+        for(let i=0; i<10; i++) {
+            ctx.beginPath(); ctx.arc(750, 350 + i*8, 6, 0, Math.PI*2); ctx.stroke();
+        }
+
+        // --- INTERNAL TUBE COMPONENTS ---
+        // Cathode (Focusing Cup)
+        ctx.fillStyle = '#333';
+        ctx.fillRect(310, 220, 30, 60);
+        
+        // Filament Glow
+        ctx.shadowBlur = mA / 2;
+        ctx.shadowColor = "orange";
+        ctx.strokeStyle = `rgb(255, ${255 - mA*2}, 100)`;
+        ctx.beginPath();
+        for(let i=0; i<10; i++) { ctx.lineTo(335 + Math.sin(i)*3, 230 + i*4); }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Anode
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.moveTo(670, 200); ctx.lineTo(620, 230); ctx.lineTo(620, 270); ctx.lineTo(670, 300);
+        ctx.closePath(); ctx.fill();
+    }
+
+    class Particle {
+        constructor(x, y, speed, type) {
+            this.x = x; this.y = y; this.speed = speed; this.type = type;
+            this.life = 1.0; this.angle = (Math.random()-0.5) * 1.2;
+        }
+        update() {
+            if(this.type === 'e') { this.x += this.speed; }
+            else { this.x += 6; this.y += this.angle * 4; this.life -= 0.02; }
+        }
+        draw() {
+            if(this.type === 'e') {
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.strokeStyle = `rgba(255,255,255,${this.life})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(this.x, this.y);
+                for(let i=0; i<10; i++) ctx.lineTo(this.x+i, this.y + Math.sin(i*0.8)*3);
+                ctx.stroke();
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const kV = parseInt(voltIn.value);
+        const mA = parseInt(currIn.value);
+        document.getElementById('kv-display').innerText = kV + " kV";
+        document.getElementById('ma-display').innerText = mA + " mA";
+
+        drawCircuit(kV, mA);
+
+        // Emit electrons from filament
+        if(Math.random() < mA/80) {
+            electrons.push(new Particle(340, 235 + Math.random()*30, kV/12, 'e'));
+        }
+
+        electrons.forEach((e, i) => {
+            e.update(); e.draw();
+            if(e.x > 620) {
+                if(Math.random() < 0.5) xrays.push(new Particle(e.x, e.y, 0, 'x'));
+                electrons.splice(i, 1);
+            }
+        });
+
+        xrays.forEach((x, i) => {
+            x.update(); x.draw();
+            if(x.life <= 0) xrays.splice(i, 1);
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>
