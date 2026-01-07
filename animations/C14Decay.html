@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>C-14 Radioactive Decay</title>
+    <style>
+        body { background: #ffffff; color: #0f172a; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        canvas { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .ui { background: #f8fafc; padding: 25px; border-radius: 12px; text-align: center; width: 500px; margin-top: 20px; border: 1px solid #e2e8f0; }
+        .stats { display: flex; justify-content: space-around; margin: 15px 0; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; }
+        .proton { color: #ef4444; font-weight: bold; }
+        .neutron { color: #64748b; font-weight: bold; }
+        .electron { color: #2563eb; font-weight: bold; }
+        button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        #decayBtn { background: #f59e0b; color: #451a03; }
+        #decayBtn:hover { background: #d97706; transform: translateY(-2px); }
+        .reset-btn { background: #64748b; color: white; margin-left: 10px; }
+        button:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; transform: none; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-bottom: 5px;">Carbon-14 Radioactive Decay</h2>
+    <p style="color: #64748b; margin-bottom: 20px;">Beta Emission</p>
+
+    <canvas id="atomCanvas" width="600" height="550"></canvas>
+
+    <div class="ui">
+        <div class="stats">
+            <div><span class="proton">6</span> Protons</div>
+            <div><span class="neutron">8</span> Neutrons</div>
+            <div><span class="electron">6</span> Electrons</div>
+        </div>
+        <div id="status" style="margin-bottom: 15px; font-weight: 600; color: #334155;">Atom: Carbon-14 (Unstable)</div>
+        <button id="decayBtn" onclick="triggerDecay()">Initiate Beta Decay</button>
+        <button class="reset-btn" onclick="init()">Reset Atom</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('atomCanvas');
+        const ctx = canvas.getContext('2d');
+        const RADIUS = 11;
+        const CENTER = { x: 300, y: 275 };
+        
+        let nucleons = [];
+        let orbitalElectrons = [];
+        let betaParticle = null;
+        let gammaRay = null;
+        let isDecayed = false;
+        let decayedNucleon = null;
+
+        class Nucleon {
+            constructor(type) {
+                this.x = CENTER.x + (Math.random() - 0.5) * 40;
+                this.y = CENTER.y + (Math.random() - 0.5) * 40;
+                this.type = type;
+                this.vx = 0; this.vy = 0;
+            }
+            update() {
+                const dx = CENTER.x - this.x; const dy = CENTER.y - this.y;
+                this.vx += dx * 0.01; this.vy += dy * 0.01;
+                nucleons.forEach(other => {
+                    if (other === this) return;
+                    const dX = this.x - other.x; const dY = this.y - other.y;
+                    const dist = Math.sqrt(dX*dX + dY*dY);
+                    if (dist < RADIUS * 2) {
+                        const angle = Math.atan2(dY, dX);
+                        this.vx += Math.cos(angle) * 0.6; this.vy += Math.sin(angle) * 0.6;
+                    }
+                });
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= 0.6; this.vy *= 0.6;
+            }
+            draw() {
+                if (this === decayedNucleon) {
+                    const pulse = (Math.sin(Date.now() * 0.01) + 1) * 4;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, RADIUS + 4 + pulse, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.stroke();
+                }
+                ctx.beginPath(); ctx.arc(this.x, this.y, RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = this.type === 'proton' ? '#ef4444' : '#64748b';
+                ctx.fill(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1; ctx.stroke();
+            }
+        }
+
+        class Electron {
+            constructor(shellRadius, startAngle, speed) {
+                this.radius = shellRadius;
+                this.angle = startAngle;
+                this.speed = speed;
+            }
+            draw() {
+                this.angle += this.speed;
+                const x = CENTER.x + Math.cos(this.angle) * this.radius;
+                const y = CENTER.y + Math.sin(this.angle) * this.radius;
+                ctx.fillStyle = '#2563eb';
+                ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        function init() {
+            nucleons = []; orbitalElectrons = []; betaParticle = null; gammaRay = null; 
+            isDecayed = false; decayedNucleon = null;
+            document.getElementById('decayBtn').disabled = false;
+            document.getElementById('status').innerText = "Atom: Carbon-14 (Unstable)";
+
+            for (let i = 0; i < 6; i++) nucleons.push(new Nucleon('proton'));
+            for (let i = 0; i < 8; i++) nucleons.push(new Nucleon('neutron'));
+            
+            // Distribute electrons evenly
+            // Inner Shell: 2 electrons (180 deg apart)
+            for (let i = 0; i < 2; i++) {
+                orbitalElectrons.push(new Electron(100, (i * Math.PI), 0.015));
+            }
+            // Outer Shell: 4 electrons (90 deg apart)
+            for (let i = 0; i < 4; i++) {
+                orbitalElectrons.push(new Electron(180, (i * Math.PI / 2), 0.008));
+            }
+        }
+
+        function triggerDecay() {
+            if (isDecayed) return;
+            isDecayed = true;
+            document.getElementById('decayBtn').disabled = true;
+            const target = nucleons.find(n => n.type === 'neutron');
+            decayedNucleon = target;
+
+            setTimeout(() => {
+                target.type = 'proton';
+                betaParticle = { x: target.x, y: target.y, vx: 2, vy: -1.5 };
+                document.getElementById('status').innerText = "Beta-minus Emission: C-14 → N-14";
+            }, 800);
+
+            setTimeout(() => {
+                gammaRay = { x: CENTER.x, y: CENTER.y, vx: -2, vy: -1 };
+                document.getElementById('status').innerText = "Transmutation Complete: Nitrogen-14";
+            }, 2500);
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, 600, 550);
+            
+            // Draw Orbits
+            ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.arc(CENTER.x, CENTER.y, 100, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(CENTER.x, CENTER.y, 180, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+
+            nucleons.forEach(n => { n.update(); n.draw(); });
+            orbitalElectrons.forEach(e => e.draw());
+
+            if (betaParticle) {
+                betaParticle.x += betaParticle.vx; betaParticle.y += betaParticle.vy;
+                ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(betaParticle.x, betaParticle.y, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.font = "bold 14px sans-serif"; ctx.fillText("Beta (β-)", betaParticle.x + 10, betaParticle.y);
+            }
+
+            if (gammaRay) {
+                gammaRay.x += gammaRay.vx; gammaRay.y += gammaRay.vy;
+                ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3; ctx.beginPath();
+                for(let i=0; i<20; i++) {
+                    const wx = gammaRay.x - (i * gammaRay.vx * 4);
+                    const wy = gammaRay.y - (i * gammaRay.vy * 4) + Math.sin(i * 0.5 + Date.now()*0.01) * 10;
+                    ctx.lineTo(wx, wy);
+                }
+                ctx.stroke();
+                ctx.fillStyle = '#b45309'; ctx.fillText("Gamma (γ)", gammaRay.x + 5, gammaRay.y - 15);
+            }
+            requestAnimationFrame(animate);
+        }
+        init(); animate();
+    </script>
+</body>
+</html>
