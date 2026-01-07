@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uranium-238 Decay - Math Fixed</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #ffffff;
+            font-family: 'Segoe UI', sans-serif;
+            color: #222;
+        }
+        #canvas-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            margin-bottom: 15px;
+        }
+        .ui-panel {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        #decayBtn { background-color: #ff5252; color: white; border: none; }
+        #decayBtn:hover { background-color: #ff1744; }
+        #decayBtn:disabled { background-color: #eee; color: #999; cursor: not-allowed; }
+        #resetBtn { background-color: #f8f9fa; color: #333; }
+        .equation-box {
+            font-size: 1.5em;
+            background: #f9f9f9;
+            padding: 10px 30px;
+            border-radius: 10px;
+            border: 1px inset #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Alpha Decay: Uranium-238</h2>
+    
+    <div id="canvas-container"></div>
+    
+    <div class="ui-panel">
+        <button id="decayBtn">Trigger Decay</button>
+        <button id="resetBtn">Reset Atom</button>
+    </div>
+    
+    <div class="equation-box">
+        \[ {}^{238}_{92}\text{U} \rightarrow {}^{234}_{90}\text{Th} + {}^{4}_{2}\alpha + \text{Energy} \]
+    </div>
+<p class="info">The Thorium is unstable, it will undergo beta decay.</p>
+    <script>
+        let nucleons = [];
+        let alphaParticles = [];
+        let isDecayed = false;
+        let nucleusLabel = "Uranium-238";
+        let protons = 92;
+        let neutrons = 146;
+        let rotAngle = 0;
+
+        function setup() {
+            const canvas = createCanvas(600, 480);
+            canvas.parent('canvas-container');
+            initializeAtom();
+            
+            document.getElementById('decayBtn').onclick = startDecay;
+            document.getElementById('resetBtn').onclick = initializeAtom;
+        }
+
+        function initializeAtom() {
+            nucleons = [];
+            alphaParticles = [];
+            isDecayed = false;
+            nucleusLabel = "Uranium-238";
+            protons = 92;
+            neutrons = 146;
+            document.getElementById('decayBtn').disabled = false;
+            document.getElementById('decayBtn').innerText = "Trigger Decay";
+
+            for (let i = 0; i < 75; i++) {
+                nucleons.push(new Nucleon(random() > 0.4 ? 'proton' : 'neutron'));
+            }
+        }
+
+        function draw() {
+            background(255);
+            
+            fill(50);
+            noStroke();
+            textSize(18);
+            text(`Nucleus: ${nucleusLabel}`, 30, 45);
+            textSize(13);
+            text(`Z: ${protons} (Protons)`, 30, 70);
+            text(`A: ${protons + neutrons} (Mass)`, 30, 90);
+
+            translate(width / 2, height / 2);
+
+            // --- Shells ---
+            noFill();
+            strokeWeight(1);
+            stroke(230);
+            ellipse(0, 0, 160, 160); // K
+            ellipse(0, 0, 280, 280); // L
+
+            // M Shell (Dashed/Empty)
+            push();
+            stroke(200);
+            drawingContext.setLineDash([6, 6]);
+            ellipse(0, 0, 400, 400);
+            pop();
+
+            // --- Nucleus ---
+            for (let n of nucleons) {
+                n.vibrate();
+                n.display();
+            }
+
+            // --- Electrons ---
+            drawElectrons();
+
+            // --- Slow Alpha Particle ---
+            for (let i = alphaParticles.length - 1; i >= 0; i--) {
+                alphaParticles[i].update();
+                alphaParticles[i].display();
+            }
+            
+            rotAngle += 0.012;
+        }
+
+        function drawElectrons() {
+            noStroke();
+            fill(0, 100, 255);
+            // K-Shell (2)
+            for (let i = 0; i < 2; i++) {
+                let x = 80 * cos(rotAngle + (i * PI));
+                let y = 80 * sin(rotAngle + (i * PI));
+                ellipse(x, y, 7, 7);
+            }
+            // L-Shell (8)
+            for (let i = 0; i < 8; i++) {
+                let x = 140 * cos(-rotAngle * 0.8 + (i * QUARTER_PI));
+                let y = 140 * sin(-rotAngle * 0.8 + (i * QUARTER_PI));
+                ellipse(x, y, 7, 7);
+            }
+        }
+
+        function startDecay() {
+            if (!isDecayed) {
+                isDecayed = true;
+                nucleusLabel = "Thorium-234";
+                protons -= 2;
+                neutrons -= 2;
+                alphaParticles.push(new AlphaParticle());
+                document.getElementById('decayBtn').disabled = true;
+                document.getElementById('decayBtn').innerText = "Alpha Emitted";
+            }
+        }
+
+        class Nucleon {
+            constructor(type) {
+                this.type = type;
+                this.pos = p5.Vector.random2D().mult(random(0, 45));
+            }
+            vibrate() {
+                this.pos.add(p5.Vector.random2D().mult(0.4));
+                if (this.pos.mag() > 50) this.pos.setMag(50);
+            }
+            display() {
+                noStroke();
+                fill(this.type === 'proton' ? '#e74c3c' : '#bdc3c7');
+                ellipse(this.pos.x, this.pos.y, 11, 11);
+            }
+        }
+
+        class AlphaParticle {
+            constructor() {
+                this.pos = createVector(0, 0);
+                this.vel = createVector(1.2, -0.4); 
+            }
+            update() { this.pos.add(this.vel); }
+            display() {
+                push();
+                translate(this.pos.x, this.pos.y);
+                fill(255, 230, 0, 100);
+                ellipse(0, 0, 35, 35);
+                fill('#e74c3c'); ellipse(-4, -4, 9, 9); ellipse(4, 4, 9, 9);
+                fill('#bdc3c7'); ellipse(4, -4, 9, 9); ellipse(-4, 4, 9, 9);
+                fill(50);
+                textSize(14);
+                text("α", 22, 5);
+                pop();
+            }
+        }
+    </script>
+</body>
+</html>
