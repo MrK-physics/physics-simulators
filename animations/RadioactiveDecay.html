@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Radiation Simulator - Shielded Source</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        canvas { background: #000; border: 2px solid #444; border-radius: 8px; cursor: crosshair; }
+        .controls { margin-top: 25px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+        .slider-group, .toggle-group { background: #2d2d2d; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; min-width: 140px; border: 1px solid #444; }
+        button { padding: 10px; cursor: pointer; font-weight: bold; border: none; border-radius: 6px; width: 100%; margin-top: 5px; }
+        .alpha { background: #ff4d4d; color: white; }
+        .beta { background: #4d79ff; color: white; }
+        .gamma { background: #ffcc00; color: black; }
+        .active { outline: 3px solid white; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .label-text { font-size: 0.8em; color: #aaa; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Radioactive Source & Absorber</h1>
+    <p>The radiation is emitted from a <strong>Lead Collimator</strong> to create a directed beam.</p>
+    
+    <canvas id="simCanvas" width="950" height="400"></canvas>
+
+    <div class="controls">
+        <div class="toggle-group">
+            <label>Alpha (α)</label>
+            <button id="btn-alpha" class="alpha" onclick="toggle('alpha')">OFF</button>
+        </div>
+        <div class="toggle-group">
+            <label>Beta (β)</label>
+            <button id="btn-beta" class="beta" onclick="toggle('beta')">OFF</button>
+        </div>
+        <div class="toggle-group">
+            <label>Gamma (γ)</label>
+            <button id="btn-gamma" class="gamma" onclick="toggle('gamma')">OFF</button>
+        </div>
+        
+        <div class="slider-group">
+            <label>Aluminum: <span id="alVal">3</span>mm</label>
+            <input type="range" id="alSlider" min="1" max="5" step="1" value="3" oninput="updateBarriers()">
+        </div>
+
+        <div class="slider-group">
+            <label>Lead: <span id="pbVal">35</span>mm</label>
+            <input type="range" id="pbSlider" min="25" max="50" step="1" value="35" oninput="updateBarriers()">
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let activeSources = { alpha: false, beta: false, gamma: false };
+        
+        let detector = { 
+            x: 800, y: 150, w: 50, h: 100, 
+            dragging: false, hitHistory: [], flash: 0 
+        };
+
+        let bConfig = {
+            paper: { x: 300, width: 10 },
+            al: { x: 450, mm: 3, width: 45 }, 
+            pb: { x: 650, mm: 35, width: 105 } 
+        };
+
+        // Input handling
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            if (mx > detector.x && mx < detector.x + detector.w && my > detector.y && my < detector.y + detector.h) {
+                detector.dragging = true;
+            }
+        });
+
+        window.addEventListener('mouseup', () => detector.dragging = false);
+        canvas.addEventListener('mousemove', e => {
+            if (detector.dragging) {
+                const rect = canvas.getBoundingClientRect();
+                detector.x = e.clientX - rect.left - detector.w/2;
+                detector.y = e.clientY - rect.top - detector.h/2;
+            }
+        });
+
+        function toggle(type) {
+            activeSources[type] = !activeSources[type];
+            document.getElementById('btn-' + type).innerText = activeSources[type] ? "ON" : "OFF";
+            document.getElementById('btn-' + type).classList.toggle('active');
+        }
+
+        function updateBarriers() {
+            bConfig.al.mm = parseInt(document.getElementById('alSlider').value);
+            bConfig.al.width = bConfig.al.mm * 15;
+            document.getElementById('alVal').innerText = bConfig.al.mm;
+
+            bConfig.pb.mm = parseInt(document.getElementById('pbSlider').value);
+            bConfig.pb.width = bConfig.pb.mm * 3;
+            document.getElementById('pbVal').innerText = bConfig.pb.mm;
+        }
+
+        function emit(type) {
+            particles.push({
+                x: 85, // Starts inside the collimator opening
+                y: 195 + (Math.random() * 10),
+                type: type, speed: type === 'alpha' ? 2 : type === 'beta' ? 5 : 8,
+                active: true, interactedAl: false, interactedPb: false, detected: false
+            });
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (activeSources.alpha && Math.random() < 0.05) emit('alpha');
+            if (activeSources.beta && Math.random() < 0.1) emit('beta');
+            if (activeSources.gamma && Math.random() < 0.15) emit('gamma');
+
+            // --- DRAW SOURCE CONTAINER (Collimator) ---
+            ctx.fillStyle = "#444"; // Outer lead box
+            ctx.fillRect(20, 160, 70, 80);
+            ctx.fillStyle = "#000"; // Inner hole
+            ctx.fillRect(40, 190, 50, 20);
+            ctx.fillStyle = "#f0f"; // The radioactive pellet
+            ctx.beginPath(); ctx.arc(45, 200, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "white"; ctx.font = "10px Arial";
+            ctx.fillText("ISOTOPE", 25, 255);
+
+            // Draw Barriers
+            ctx.fillStyle = "white"; ctx.fillRect(bConfig.paper.x, 50, bConfig.paper.width, 300);
+            ctx.fillStyle = "#aaa"; ctx.fillRect(bConfig.al.x, 50, bConfig.al.width, 300);
+            ctx.fillStyle = "#555"; ctx.fillRect(bConfig.pb.x, 50, bConfig.pb.width, 300);
+            
+            ctx.fillStyle = "white"; ctx.font = "bold 12px Arial";
+            ctx.fillText("Paper", bConfig.paper.x, 45);
+            ctx.fillText("Al ("+bConfig.al.mm+"mm)", bConfig.al.x, 45);
+            ctx.fillText("Lead ("+bConfig.pb.mm+"mm)", bConfig.pb.x, 45);
+
+            // Detector logic
+            const now = Date.now();
+            detector.hitHistory = detector.hitHistory.filter(time => now - time < 2000);
+            let cpm = Math.round((detector.hitHistory.length / 2) * 60);
+
+            ctx.strokeStyle = detector.flash > 0 ? "#fff" : "#0f0";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(detector.x, detector.y, detector.w, detector.h);
+            ctx.fillStyle = "rgba(0, 255, 0, 0.1)";
+            ctx.fillRect(detector.x, detector.y, detector.w, detector.h);
+            ctx.fillStyle = "#0f0";
+            ctx.font = "bold 14px monospace";
+            ctx.fillText("CPM: " + cpm, detector.x, detector.y - 10);
+            if (detector.flash > 0) detector.flash--;
+
+            // Particle Updates
+            particles.forEach(p => {
+                if (!p.active) return;
+                p.x += p.speed;
+
+                if (p.type === 'alpha' && p.x > bConfig.paper.x) p.active = false;
+                
+                if (p.type === 'beta') {
+                    if (p.x > bConfig.al.x && p.x < bConfig.al.x + bConfig.al.width && !p.interactedAl) {
+                        if (Math.random() < (bConfig.al.mm / 5)) p.active = false;
+                        p.interactedAl = true;
+                    }
+                    if (p.x > bConfig.pb.x) p.active = false;
+                }
+
+                if (p.type === 'gamma' && p.x > bConfig.pb.x && p.x < bConfig.pb.x + bConfig.pb.width && !p.interactedPb) {
+                    let absorptionChance = 1 - Math.exp(-0.04 * bConfig.pb.mm);
+                    if (Math.random() < absorptionChance) p.active = false;
+                    p.interactedPb = true;
+                }
+
+                if (p.active && p.x > detector.x && p.x < detector.x + detector.w && p.y > detector.y && p.y < detector.y + detector.h && !p.detected) {
+                    detector.hitHistory.push(Date.now());
+                    detector.flash = 5;
+                    p.detected = true;
+                }
+
+                // Render particles
+                ctx.beginPath();
+                if (p.type === 'alpha') { ctx.fillStyle = '#ff4d4d'; ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill(); }
+                else if (p.type === 'beta') { ctx.fillStyle = '#4d79ff'; ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); }
+                else { 
+                    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
+                    for(let j=0; j<20; j++) ctx.lineTo(p.x-j, p.y + Math.sin((p.x-j)*0.3)*8);
+                    ctx.stroke();
+                }
+
+                if (p.x > canvas.width) p.active = false;
+            });
+
+            particles = particles.filter(p => p.active);
+            requestAnimationFrame(update);
+        }
+        update();
+    </script>
+</body>
+</html>
