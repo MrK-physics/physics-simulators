@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Radioactive Decay Lab - Formula Edition</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f4f8; color: #2d3436; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); max-width: 1000px; }
+        .controls { background: #dfe6e9; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap;}
+        canvas { background: #fff; border: 1px solid #b2bec3; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #dfe6e9; padding: 10px; text-align: center; }
+        th { background-color: #0984e3; color: white; }
+        .btn-start { padding: 12px 20px; cursor: pointer; background: #00b894; color: white; border: none; border-radius: 6px; font-weight: bold; }
+        .btn-reset { padding: 12px 20px; cursor: pointer; background: #636e72; color: white; border: none; border-radius: 6px; font-weight: bold; }
+        .btn-theory { padding: 12px 20px; cursor: pointer; background: #6c5ce7; color: white; border: none; border-radius: 6px; font-weight: bold; }
+        button:disabled { background: #b2bec3; opacity: 0.6; }
+        sub { font-size: 0.7em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="margin-top:0">Radioactive Decay Simulation</h2>
+    
+    <div class="controls">
+        <div style="display: flex; flex-direction: column;">
+            <strong>Set t<sub>1/2</sub>: <span id="hlVal">5.0</span>s</strong>
+            <input type="range" id="hlSlider" min="1" max="15" value="5" step="0.5" style="width:150px">
+        </div>
+        
+        <button id="startBtn" class="btn-start" onclick="startSimulation()">Start Experiment</button>
+        <button id="theoryBtn" class="btn-theory" onclick="toggleTheory()" disabled>Show Theory</button>
+        <button class="btn-reset" onclick="resetSimulation()">Reset</button>
+
+        <div style="font-weight:bold; color:#d63031">N: <span id="nText">400</span></div>
+    </div>
+
+    <canvas id="decayCanvas" width="900" height="400"></canvas>
+
+    <table id="resultsTable">
+        <thead>
+            <tr>
+                <th>Milestone</th>
+                <th>Particles (N)</th>
+                <th>Time (t)</th>
+                <th>Interval (Δt)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const canvas = document.getElementById('decayCanvas');
+    const ctx = canvas.getContext('2d');
+    const hlSlider = document.getElementById('hlSlider');
+    const hlVal = document.getElementById('hlVal');
+    const nText = document.getElementById('nText');
+    const tableBody = document.getElementById('tableBody');
+    const startBtn = document.getElementById('startBtn');
+    const theoryBtn = document.getElementById('theoryBtn');
+
+    let atoms = [], history = [], markers = [], time = 0, anim;
+    let lastHlTime = 0, isRunning = false, showTheory = false;
+    let currentHL = 5;
+
+    // Custom function to draw the complex decay equation on Canvas
+    function drawDecayFormula(x, y) {
+        ctx.fillStyle = "#27ae60";
+        ctx.font = "italic 16px serif";
+        
+        ctx.fillText("N(t) = N", x, y);
+        let nWidth = ctx.measureText("N(t) = N").width;
+        
+        ctx.font = "italic 11px serif";
+        ctx.fillText("0", x + nWidth - 2, y + 5);
+        let zeroWidth = ctx.measureText("0").width;
+        
+        ctx.font = "italic 16px serif";
+        ctx.fillText("( 1/2 )", x + nWidth + zeroWidth + 5, y);
+        let halfWidth = ctx.measureText("( 1/2 )").width;
+
+        // Draw exponent t / t1/2
+        ctx.font = "italic 10px serif";
+        let expX = x + nWidth + zeroWidth + halfWidth + 8;
+        ctx.fillText("t / t", expX, y - 8);
+        let tWidth = ctx.measureText("t / t").width;
+        ctx.font = "7px serif";
+        ctx.fillText("1/2", expX + tWidth, y - 5);
+    }
+
+    function drawSubscript(txt, sub, x, y, mainFont, subFont) {
+        ctx.font = mainFont; ctx.fillText(txt, x, y);
+        let width = ctx.measureText(txt).width;
+        ctx.font = subFont; ctx.fillText(sub, x + width, y + 5);
+    }
+
+    function init() {
+        atoms = []; history = []; markers = []; time = 0; lastHlTime = 0;
+        isRunning = false; showTheory = false;
+        startBtn.disabled = false; hlSlider.disabled = false; theoryBtn.disabled = true;
+        theoryBtn.innerText = "Show Theory";
+        tableBody.innerHTML = "";
+        for(let i=0; i<400; i++) { atoms.push({ x: 40 + (i % 20) * 14, y: 80 + Math.floor(i / 20) * 14, decayed: false }); }
+        nText.innerText = "400";
+        drawState(); 
+    }
+
+    function drawState() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        atoms.forEach(a => {
+            ctx.beginPath(); ctx.arc(a.x, a.y, 5, 0, Math.PI*2);
+            ctx.fillStyle = a.decayed ? "#f1f2f6" : "#ff7675"; ctx.fill();
+        });
+
+        const ox = 450, oy = 350, gw = 400, gh = 280;
+        ctx.strokeStyle = "#2d3436"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(ox, oy - gh); ctx.lineTo(ox, oy); ctx.lineTo(ox + gw, oy); ctx.stroke();
+        
+        ctx.fillStyle = "#2d3436"; ctx.font = "bold 12px sans-serif";
+        ctx.fillText("Time (s)", ox + gw - 40, oy + 25);
+        ctx.save(); ctx.translate(ox - 35, oy - gh/2); ctx.rotate(-Math.PI/2);
+        ctx.fillText("Remaining (N)", -40, 0); ctx.restore();
+
+        // Milestones
+        const thresholds = [{n:200, l:"1st"}, {n:100, l:"2nd"}, {n:50, l:"3rd"}, {n:25, l:"4th"}];
+        thresholds.forEach(th => {
+            if (isRunning && atoms.filter(a=>!a.decayed).length <= th.n && !markers.find(m => m.n === th.n)) {
+                let currentTime = time / 60;
+                markers.push({ n: th.n, l: th.l, t: currentTime, x: ox + (time * (gw / 1500)), y: oy - (th.n * (gh / 400)) });
+                const row = tableBody.insertRow();
+                row.innerHTML = `<td>${th.l} t<sub>1/2</sub></td><td>${th.n}</td><td>${currentTime.toFixed(2)}s</td><td>${(currentTime - lastHlTime).toFixed(2)}s</td>`;
+                lastHlTime = currentTime;
+            }
+        });
+
+        // Experimental Line
+        if(history.length > 0) {
+            ctx.beginPath(); ctx.setLineDash([]); ctx.strokeStyle = "#0984e3"; ctx.lineWidth = 2;
+            for (let i = 0; i < history.length; i++) {
+                let px = ox + (i * (gw / 1500));
+                let py = oy - (history[i] * (gh / 400));
+                if (i === 0) ctx.moveTo(px, py); else if (px < ox + gw) ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // Theoretical Line & Equation
+        if(showTheory) {
+            ctx.beginPath(); ctx.setLineDash([2, 2]); ctx.strokeStyle = "#2ecc71"; ctx.lineWidth = 2;
+            let lambda = Math.LN2 / (currentHL * 60);
+            for (let i = 0; i < 1500; i++) {
+                let theoryN = 400 * Math.exp(-lambda * i);
+                let px = ox + (i * (gw / 1500));
+                let py = oy - (theoryN * (gh / 400));
+                if (i === 0) ctx.moveTo(px, py); else if (px < ox + gw) ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            drawDecayFormula(ox + 100, oy - gh + 30);
+        }
+
+        markers.forEach(m => {
+            ctx.setLineDash([4, 4]); ctx.strokeStyle = "#b2bec3";
+            ctx.beginPath(); ctx.moveTo(ox, m.y); ctx.lineTo(m.x, m.y); ctx.lineTo(m.x, oy); ctx.stroke();
+            ctx.setLineDash([]); ctx.fillStyle = "#d63031";
+            ctx.beginPath(); ctx.arc(m.x, m.y, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillText(m.n, ox - 30, m.y + 5); 
+            drawSubscript(m.l + " t", "1/2", m.x - 15, oy + 15, "bold 11px sans-serif", "bold 8px sans-serif");
+        });
+    }
+
+    function startSimulation() {
+        if (isRunning) return;
+        isRunning = true; startBtn.disabled = true; hlSlider.disabled = true;
+        theoryBtn.disabled = false;
+        currentHL = parseFloat(hlSlider.value);
+        const row = tableBody.insertRow(); row.innerHTML = `<td>Start (N<sub>0</sub>)</td><td>400</td><td>0.00s</td><td>-</td>`;
+        animate();
+    }
+
+    function toggleTheory() {
+        showTheory = !showTheory;
+        theoryBtn.innerText = showTheory ? "Hide Theory" : "Show Theory";
+        if (!isRunning) drawState();
+    }
+
+    function animate() {
+        if (!isRunning) return;
+        const prob = 1 - Math.exp(-Math.LN2 / (currentHL * 60));
+        atoms.forEach(a => { if (!a.decayed && Math.random() < prob) a.decayed = true; });
+        let rem = atoms.filter(a=>!a.decayed).length;
+        history.push(rem); nText.innerText = rem;
+        drawState();
+        time++;
+        if (rem > 0 && time < 1500) anim = requestAnimationFrame(animate); else isRunning = false;
+    }
+
+    function resetSimulation() { cancelAnimationFrame(anim); init(); }
+    hlSlider.oninput = () => { hlVal.innerText = hlSlider.value; };
+    init();
+</script>
+</body>
+</html>
