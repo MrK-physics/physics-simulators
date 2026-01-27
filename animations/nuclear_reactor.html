@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Reactor Flow Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin: 0 0 10px 0; }
+        p { color: #aaa; font-size: 0.9em; margin-bottom: 20px; text-align: center; }
+
+        /* The main diagram area */
+        .diagram-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        /* --- 1. REACTOR VESSEL --- */
+        .reactor-vessel {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            width: 200px;
+            height: 300px;
+            border: 6px solid #555;
+            border-radius: 15px;
+            background: rgb(0, 100, 255);
+            overflow: hidden;
+            z-index: 10;
+            transition: background 0.5s;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .fuel-rod {
+            position: absolute;
+            bottom: 20px; 
+            width: 15px;
+            height: 180px;
+            background: repeating-linear-gradient(45deg, #d35400, #d35400 5px, #e67e22 5px, #e67e22 10px);
+            border: 1px solid #333;
+            border-radius: 3px;
+            z-index: 2;
+        }
+
+        .control-rod-assembly {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            transition: transform 0.1s linear; /* Fast response */
+            z-index: 3;
+        }
+
+        .control-rod {
+            position: absolute;
+            top: 0; 
+            /* Width increased to 22px to block the 25px gap effectively */
+            width: 22px; 
+            height: 250px; 
+            background: linear-gradient(90deg, #7f8c8d, #95a5a6);
+            border: 1px solid #2c3e50;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Bubbles */
+        .bubble {
+            position: absolute;
+            background: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            animation: rise 2s infinite ease-in;
+            z-index: 1;
+        }
+        @keyframes rise {
+            0% { bottom: 0; opacity: 0; }
+            50% { opacity: 1; }
+            100% { bottom: 100%; opacity: 0; }
+        }
+
+        /* --- 2. PIPES --- */
+        .pipe {
+            position: absolute;
+            background-color: #333;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .fluid {
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                90deg, 
+                rgba(255,255,255,0.1) 0px, 
+                rgba(255,255,255,0.1) 10px, 
+                transparent 10px, 
+                transparent 20px
+            );
+            background-size: 200% 100%;
+            animation: flow 2s linear infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes flow {
+            0% { background-position: 0% 0; }
+            100% { background-position: 100% 0; }
+        }
+
+        /* Steam Pipe */
+        #pipe-steam-1 { top: 100px; left: 250px; width: 300px; height: 30px; }
+        #pipe-steam-2 { top: 100px; left: 550px; width: 30px; height: 50px; }
+        
+        /* Water Pipe */
+        #pipe-water-1 { bottom: 80px; left: 550px; width: 30px; height: 120px; }
+        #pipe-water-2 { bottom: 80px; left: 250px; width: 300px; height: 30px; }
+        
+        .steam-fluid { background-color: rgba(200, 230, 255, 0.2); }
+        .water-fluid { background-color: rgba(0, 100, 255, 0.5); }
+
+        /* --- 3. COMPONENTS --- */
+        .turbine-box {
+            position: absolute;
+            top: 150px;
+            right: 170px;
+            width: 100px;
+            height: 100px;
+            background: #444;
+            border: 2px solid #777;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+        .blade {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            border: 4px dashed #f1c40f;
+            animation: spin 0s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .condenser-box {
+            position: absolute;
+            top: 270px;
+            right: 170px;
+            width: 100px;
+            height: 60px;
+            background: #2c3e50;
+            border: 2px solid #555;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #8fa;
+            font-size: 0.8em;
+            z-index: 5;
+        }
+        .connector {
+            position: absolute;
+            top: 250px; right: 210px; width: 20px; height: 20px; background: #555;
+        }
+
+        .pump-box {
+            position: absolute;
+            bottom: 60px;
+            left: 380px;
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border: 2px solid #777;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 6;
+        }
+        .pump-fan {
+            font-size: 30px;
+            color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+
+        /* --- CONTROLS UI --- */
+        .controls-panel {
+            display: flex;
+            gap: 20px;
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 800px;
+            box-sizing: border-box;
+        }
+        .control-group { flex: 1; }
+        
+        .metric { display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9em; margin-bottom: 5px; }
+        .bar-bg { width: 100%; height: 15px; background: #111; border: 1px solid #444; border-radius: 5px; overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.2s; }
+        
+        input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; }
+
+        .label {
+            position: absolute;
+            color: #fff;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 5px;
+            font-size: 12px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>BWR Nuclear Reactor Simulator</h1>
+    <p>
+        <strong>Status:</strong> <span id="statusText" style="color:#0f0">Safe</span>
+    </p>
+
+    <div class="diagram-container">
+        
+        <!-- LABELS -->
+        <div class="label" style="top: 130px; left: 260px;">Steam Line</div>
+        <div class="label" style="bottom: 115px; left: 260px;">Feedwater Return</div>
+        <div class="label" style="top: 155px; right: 280px;">Turbine</div>
+        <div class="label" style="top: 280px; right: 280px;">Condenser</div>
+        <div class="label" style="bottom: 40px; left: 390px;">Pump</div>
+
+        <!-- REACTOR CORE -->
+        <div class="reactor-vessel" id="vessel">
+            <canvas id="neutronCanvas"></canvas>
+            
+            <!-- Fuel Rods (Fixed Geometry) -->
+            <div class="fuel-rod" style="left: 30px;"></div>
+            <div class="fuel-rod" style="left: 70px;"></div>
+            <div class="fuel-rod" style="left: 110px;"></div>
+            <div class="fuel-rod" style="left: 150px;"></div>
+
+            <!-- Control Rods (Movable) -->
+            <!-- Adjusted positions to perfectly fill gaps -->
+            <div class="control-rod-assembly" id="controlAssembly">
+                <!-- Gap between 30+15(45) and 70 is 25px. Center is 57.5. -->
+                <!-- We place rod at left: 46.5px with width 22px to fill the 25px gap with 1.5px margin -->
+                <div class="control-rod" style="left: 46px;"></div>
+                <div class="control-rod" style="left: 86px;"></div>
+                <div class="control-rod" style="left: 126px;"></div>
+            </div>
+
+            <div id="bubbles"></div>
+        </div>
+
+        <!-- PIPES & FLUIDS -->
+        <div class="pipe" id="pipe-steam-1">
+            <div class="fluid steam-fluid" id="fluid-s1"></div>
+        </div>
+        <div class="pipe" id="pipe-steam-2">
+            <div class="fluid steam-fluid" id="fluid-s2" style="background: repeating-linear-gradient(0deg, rgba(255,255,255,0.1) 0px, transparent 10px, transparent 20px);"></div>
+        </div>
+        <div class="connector"></div>
+        <div class="pipe" id="pipe-water-1">
+             <div class="fluid water-fluid" id="fluid-w1" style="background: repeating-linear-gradient(0deg, rgba(255,255,255,0.1) 0px, transparent 10px, transparent 20px); animation-direction: reverse;"></div>
+        </div>
+        <div class="pipe" id="pipe-water-2">
+            <div class="fluid water-fluid" id="fluid-w2" style="animation-direction: reverse;"></div>
+        </div>
+
+        <!-- COMPONENTS -->
+        <div class="turbine-box">
+            <div class="blade" id="turbineBlade"></div>
+        </div>
+
+        <div class="condenser-box">
+            <div>Condenser</div>
+        </div>
+
+        <div class="pump-box">
+            <div class="pump-fan" id="pumpFan">✇</div>
+        </div>
+
+    </div>
+
+    <!-- CONTROL PANEL -->
+    <div class="controls-panel">
+        <div class="control-group">
+            <label><strong>Control Rods</strong> (Moderator)</label>
+            <div style="font-size:0.8em; color:#aaa; margin-top:5px;">
+                Insert (Right) to absorb neutrons and STOP reaction.
+            </div>
+            <input type="range" id="rodControl" min="0" max="100" value="100">
+            <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-top:2px;">
+                <span>0% (Running)</span>
+                <span>100% (Stopped)</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="metric">
+                <span>Core Temperature</span>
+                <span id="tempVal">20°C</span>
+            </div>
+            <div class="bar-bg"><div class="bar-fill" id="tempBar" style="background:#3498db;"></div></div>
+
+            <div class="metric" style="margin-top:15px;">
+                <span>Electrical Output</span>
+                <span id="powerVal">0 MW</span>
+            </div>
+            <div class="bar-bg"><div class="bar-fill" id="powerBar" style="background:#f1c40f;"></div></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('neutronCanvas');
+        const ctx = canvas.getContext('2d');
+        const vessel = document.getElementById('vessel');
+        const controlAssembly = document.getElementById('controlAssembly');
+        const rodInput = document.getElementById('rodControl');
+        const statusText = document.getElementById('statusText');
+        
+        const tempDisplay = document.getElementById('tempVal');
+        const tempBar = document.getElementById('tempBar');
+        const powerDisplay = document.getElementById('powerVal');
+        const powerBar = document.getElementById('powerBar');
+        const turbineBlade = document.getElementById('turbineBlade');
+        
+        const fluids = [
+            document.getElementById('fluid-s1'),
+            document.getElementById('fluid-s2'),
+            document.getElementById('fluid-w1'),
+            document.getElementById('fluid-w2')
+        ];
+
+        canvas.width = 200;
+        canvas.height = 300;
+
+        let state = {
+            rodInsertion: 1.0, 
+            temperature: 20,
+            maxTemp: 1500,
+            power: 0,
+            neutrons: []
+        };
+
+        // --- UPDATED GEOMETRY FOR TIGHTER FIT ---
+        const fuelYTop = 100;
+        const fuelYBottom = 280; // Fuel rods are 180px tall
+        
+        const fuelRods = [
+            {x: 30, w: 15, y: fuelYTop, h: 180}, // Right edge 45
+            {x: 70, w: 15, y: fuelYTop, h: 180}, // Left edge 70. Gap 25px.
+            {x: 110, w: 15, y: fuelYTop, h: 180},
+            {x: 150, w: 15, y: fuelYTop, h: 180}
+        ];
+
+        // Control rods: Positioned to tightly fill the gaps
+        // Visual width in CSS is 22px.
+        // Gap is 25px. Clearance is 1.5px on each side. Neutrons (2px) can barely fit, likelihood is low.
+        const controlRodXs = [46, 86, 126];
+        const controlRodW = 22; 
+        const controlRodLen = 250; 
+
+        class Neutron {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                let angle = Math.random() * Math.PI * 2;
+                // Speed increases with temp
+                let speed = 2 + (state.temperature / 500); 
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 100;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                
+                // Bounce walls
+                if (this.x <= 0 || this.x >= canvas.width) this.vx *= -1;
+                if (this.y <= 0 || this.y >= canvas.height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = "white";
+                ctx.fillRect(this.x, this.y, 2, 2);
+            }
+        }
+
+        function loop() {
+            updatePhysics();
+            draw();
+            updateVisuals();
+            requestAnimationFrame(loop);
+        }
+
+        function updatePhysics() {
+            // 1. Calculate Control Rod Position
+            // rodInsertion 1.0 = Tip at Y=280 (Bottom of Fuel)
+            // rodInsertion 0.0 = Tip at Y=100 (Top of Fuel)
+            // Range = 180px
+            const rodRange = 180;
+            const startTop = -150; // Visual CSS top when retracted
+            
+            // Visual position
+            const currentTopCSS = startTop + (state.rodInsertion * rodRange);
+            controlAssembly.style.transform = `translateY(${currentTopCSS}px)`;
+            
+            // Logical Tip Position (Collision Line)
+            const currentTipY = currentTopCSS + controlRodLen; 
+
+            // 2. Spawn Neutrons (Spontaneous)
+            // If rods are fully inserted (100%), we reduce spontaneous fission rate slightly 
+            // just to prevent visual clutter, though physics says it continues. 
+            // The main stop comes from absorption.
+            if (Math.random() < 0.3) {
+                let f = fuelRods[Math.floor(Math.random()*fuelRods.length)];
+                state.neutrons.push(new Neutron(f.x + f.w/2, f.y + Math.random()*f.h));
+            }
+
+            // 3. Neutron Interaction
+            for (let i = state.neutrons.length - 1; i >= 0; i--) {
+                let n = state.neutrons[i];
+                n.update();
+                let absorbed = false;
+
+                // --- ABSORPTION LOGIC ---
+                // If neutron is logically "above" the tip of the rod (meaning inside the rod vertically)
+                if (n.y < currentTipY) {
+                    for (let cx of controlRodXs) {
+                        // Check horizontal collision
+                        if (n.x > cx && n.x < cx + controlRodW) {
+                            absorbed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (absorbed) {
+                    state.neutrons.splice(i, 1);
+                    continue;
+                }
+
+                // --- FISSION LOGIC ---
+                let hitFuel = false;
+                for (let f of fuelRods) {
+                    if (n.x > f.x && n.x < f.x + f.w && n.y > f.y && n.y < f.y + f.h) {
+                        hitFuel = true;
+                        state.temperature += 0.15; // Heat up
+                        
+                        // Chain reaction:
+                        // Only multiplies if population isn't exploded (limit 300)
+                        // AND probability check
+                        if (state.neutrons.length < 300 && Math.random() < 0.05) {
+                            state.neutrons.push(new Neutron(n.x, n.y));
+                        }
+                        break;
+                    }
+                }
+
+                if (n.life <= 0) state.neutrons.splice(i, 1);
+            }
+
+            // 4. Thermodynamics
+            // Constant cooling (Water flow)
+            state.temperature -= 0.8;
+            
+            if (state.temperature < 20) state.temperature = 20;
+            if (state.temperature > state.maxTemp) state.temperature = state.maxTemp;
+
+            // Power
+            if (state.temperature > 100) {
+                state.power = Math.floor((state.temperature - 100) * 1.5);
+            } else {
+                state.power = 0;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            state.neutrons.forEach(n => n.draw());
+        }
+
+        function updateVisuals() {
+            state.rodInsertion = parseInt(rodInput.value) / 100;
+
+            tempDisplay.innerText = Math.floor(state.temperature) + "°C";
+            powerDisplay.innerText = state.power + " MW";
+            
+            // Status Text
+            if (state.temperature > 1000) {
+                statusText.innerText = "CRITICAL WARNING";
+                statusText.style.color = "red";
+            } else if (state.power > 0) {
+                statusText.innerText = "GENERATING POWER";
+                statusText.style.color = "#f1c40f";
+            } else {
+                statusText.innerText = "SAFE / IDLE";
+                statusText.style.color = "#0f0";
+            }
+
+            // Bars
+            let tempPct = (state.temperature / state.maxTemp) * 100;
+            tempBar.style.width = Math.min(tempPct, 100) + "%";
+            
+            if (state.temperature > 800) tempBar.style.background = "#e74c3c";
+            else if (state.temperature > 100) tempBar.style.background = "#e67e22";
+            else tempBar.style.background = "#3498db";
+
+            let powerPct = (state.power / 1500) * 100;
+            powerBar.style.width = Math.min(powerPct, 100) + "%";
+
+            // Vessel Color
+            if (state.temperature > 100) {
+                let r = Math.min(255, (state.temperature - 100)/2);
+                vessel.style.background = `rgb(${r}, 100, 255)`;
+            } else {
+                vessel.style.background = "rgb(0, 100, 255)";
+            }
+
+            // Animations (Flow & Turbine)
+            if (state.temperature > 100) {
+                let tDiff = state.temperature - 100;
+                let duration = Math.max(0.2, 5 - (tDiff / 200)); 
+                
+                fluids.forEach(f => {
+                    f.style.animationDuration = duration + "s";
+                    f.style.opacity = 0.6;
+                });
+                
+                turbineBlade.style.animationDuration = Math.max(0.1, duration) + "s";
+                
+                let steamOpacity = Math.min(0.8, tDiff / 500);
+                document.getElementById('fluid-s1').style.backgroundColor = `rgba(255, 255, 255, ${steamOpacity})`;
+                document.getElementById('fluid-s2').style.backgroundColor = `rgba(255, 255, 255, ${steamOpacity})`;
+
+                manageBubbles();
+            } else {
+                fluids.forEach(f => f.style.opacity = 0.1);
+                turbineBlade.style.animationDuration = "0s";
+                document.getElementById('fluid-s1').style.backgroundColor = `rgba(200, 230, 255, 0.1)`;
+                document.getElementById('fluid-s2').style.backgroundColor = `rgba(200, 230, 255, 0.1)`;
+            }
+        }
+
+        function manageBubbles() {
+            if (Math.random() < (state.temperature-100)/3000) {
+                let b = document.createElement('div');
+                b.className = 'bubble';
+                b.style.left = Math.random()*180 + "px";
+                let size = 5 + Math.random()*10;
+                b.style.width = size+"px"; b.style.height=size+"px";
+                document.getElementById('bubbles').appendChild(b);
+                setTimeout(() => b.remove(), 2000);
+            }
+        }
+
+        loop();
+
+    </script>
+</body>
+</html>
