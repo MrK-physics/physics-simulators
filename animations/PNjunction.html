@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .canvas-container { position: relative; border: 3px solid #334155; border-radius: 12px; background: #020617; padding: 40px; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+        canvas { display: block; }
+        .ui { margin-top: 20px; background: #1e293b; padding: 20px; border-radius: 12px; width: 720px; text-align: center; border: 1px solid #475569; }
+        .btn-group { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        button { border: none; padding: 10px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; }
+        .btn-fwd { background: #22c55e; }
+        .btn-rev { background: #ef4444; }
+        .btn-off { background: #64748b; }
+        .btn-reset { background: #facc15; color: #020617; }
+        .terminal { position: absolute; top: 50%; transform: translateY(-50%); font-size: 3rem; font-weight: bold; font-family: monospace; }
+        #leftT { left: 15px; }
+        #rightT { right: 15px; }
+
+        /* Meaning/Legend Styles */
+        .glossary { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; width: 760px; }
+        .card { background: #1e293b; padding: 15px; border-radius: 8px; border-left: 4px solid #334155; font-size: 0.85rem; line-height: 1.4; }
+        .card h4 { margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px; }
+        .card.electron { border-color: #38bdf8; }
+        .card.hole { border-color: #ef4444; }
+        .card.photon { border-color: #facc15; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+    <div class="canvas-container">
+        <div id="leftT" class="terminal" style="color: #94a3b8;">&nbsp;</div>
+        <div id="rightT" class="terminal" style="color: #94a3b8;">&nbsp;</div>
+        <canvas id="junctionCanvas" width="700" height="300"></canvas>
+    </div>
+
+    <div class="ui">
+        <div class="btn-group">
+            <button class="btn-fwd" onclick="setMode('forward')">Forward Bias</button>
+            <button class="btn-off" onclick="setMode('off')">No Power</button>
+            <button class="btn-rev" onclick="setMode('reverse')">Reverse Bias</button>
+            <button class="btn-reset" onclick="restart()">Restart Simulation</button>
+        </div>
+        <div id="statusMsg" style="font-size: 1.1rem; color: #94a3b8;">Click a mode to observe charge behavior.</div>
+    </div>
+
+    <div class="glossary">
+        <div class="card electron">
+            <h4><div class="dot" style="background:#38bdf8"></div> Free Electron</h4>
+            Negative charge carriers. In N-type Silicon, Phosphorus adds these "extra" electrons that move freely through the conduction band.
+        </div>
+        <div class="card hole">
+            <h4><div class="dot" style="border:2px solid #ef4444; width:8px; height:8px;"></div> Hole</h4>
+            Positive charge carriers. In P-type Silicon, Boron creates a "vacancy." A hole moves when a valence electron hops into this empty spot.
+        </div>
+        <div class="card photon">
+            <h4><div style="color:#facc15; font-weight:bold; font-size:1.2rem; line-height:0.5">~~~</div> Photon</h4>
+            Particles of light. Emitted when an electron "falls" into a hole. This drop in energy level releases a wave of electromagnetic radiation.
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('junctionCanvas');
+const ctx = canvas.getContext('2d');
+const leftT = document.getElementById('leftT');
+const rightT = document.getElementById('rightT');
+
+let mode = 'off';
+let depletionWidth = 120;
+let particles = [];
+let photons = [];
+
+function initParticles() {
+    particles = [];
+    photons = [];
+    for(let i=0; i<30; i++) {
+        particles.push({ x: Math.random()*250+50, y: Math.random()*260+20, type: 'hole' });
+        particles.push({ x: Math.random()*250+400, y: Math.random()*260+20, type: 'electron' });
+    }
+}
+
+function restart() {
+    initParticles();
+    setMode('off');
+    depletionWidth = 120;
+}
+
+function setMode(m) {
+    mode = m;
+    const msg = document.getElementById('statusMsg');
+    if(m === 'forward') {
+        leftT.innerText = "+"; leftT.style.color = "#22c55e";
+        rightT.innerText = "−"; rightT.style.color = "#ef4444";
+        msg.innerHTML = "<b>Forward Bias:</b> Carriers are pushed together, shrinking the barrier.";
+    } else if(m === 'reverse') {
+        leftT.innerText = "−"; leftT.style.color = "#ef4444";
+        rightT.innerText = "+"; rightT.style.color = "#22c55e";
+        msg.innerHTML = "<b>Reverse Bias:</b> Carriers are pulled away, widening the barrier.";
+    } else {
+        leftT.innerText = ""; rightT.innerText = "";
+        msg.innerHTML = "<b>Equilibrium:</b> The natural depletion region stops carrier flow.";
+    }
+}
+
+function drawPhoton(x, y, alpha) {
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(250, 204, 21, ${alpha})`;
+    ctx.lineWidth = 2;
+    for(let i=0; i<35; i++) {
+        let dx = i;
+        let dy = Math.sin(i * 0.6) * 7;
+        ctx.lineTo(x + dx, y + dy);
+    }
+    ctx.stroke();
+}
+
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let target = (mode === 'forward') ? 20 : (mode === 'reverse' ? 240 : 120);
+    depletionWidth += (target - depletionWidth) * 0.05;
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
+    ctx.fillRect(350 - depletionWidth/2, 0, depletionWidth, 300);
+
+    particles.forEach(p => {
+        if (mode === 'forward') {
+            if (p.type === 'hole') {
+                p.x += 2; if (p.x > 350) { photons.push({x:350, y:p.y, alpha:1}); p.x = 20; }
+            } else {
+                p.x -= 2; if (p.x < 350) p.x = 680;
+            }
+        } else if (mode === 'reverse') {
+            if (p.type === 'hole' && p.x > 30) p.x -= 3;
+            if (p.type === 'electron' && p.x < 670) p.x += 3;
+        } else {
+            if (p.type === 'hole' && p.x > (350 - depletionWidth/2)) p.x -= 1;
+            if (p.type === 'electron' && p.x < (350 + depletionWidth/2)) p.x += 1;
+            p.x += (Math.random()-0.5);
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+        if(p.type === 'hole') {
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.stroke();
+        } else {
+            ctx.fillStyle = '#38bdf8'; ctx.fill();
+        }
+    });
+
+    for (let i = photons.length - 1; i >= 0; i--) {
+        let ph = photons[i];
+        drawPhoton(ph.x, ph.y, ph.alpha);
+        ph.y -= 1.5;
+        ph.alpha -= 0.02;
+        if(ph.alpha <= 0) photons.splice(i, 1);
+    }
+    requestAnimationFrame(update);
+}
+
+initParticles();
+update();
+</script>
+</body>
+</html>
