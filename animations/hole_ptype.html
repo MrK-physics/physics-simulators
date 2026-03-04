@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { position: relative; border: 2px solid #334155; border-radius: 12px; background: #020617; padding: 40px; }
+        canvas { display: block; }
+        .ui { margin-top: 20px; background: #1e293b; padding: 15px; border-radius: 8px; width: 600px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        button { background: #38bdf8; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; color: #020617; font-size: 1rem; }
+        button:hover { background: #7dd3fc; }
+        .status { font-weight: bold; font-size: 1.1rem; }
+        .field-on { color: #22c55e; }
+        .field-off { color: #94a3b8; }
+        .terminal { position: absolute; top: 50%; transform: translateY(-50%); font-size: 3rem; font-weight: bold; opacity: 0.3; }
+    </style>
+</head>
+<body>
+
+    <h2>Hole Localization at Boron Dopant</h2>
+    
+    <div class="container">
+        <div class="terminal" style="left: 15px; color: #38bdf8;">+</div>
+        <div class="terminal" style="right: 15px; color: #ef4444;">−</div>
+        <canvas id="latticeCanvas" width="600" height="300"></canvas>
+    </div>
+
+    <div class="ui">
+        <div class="status">
+            Current State: <span id="stateDisplay" class="field-off">Stable (Hole at Boron)</span>
+        </div>
+        <button onclick="toggleField()">Toggle Electric Field</button>
+        <p style="font-size: 0.9rem; color: #94a3b8; text-align: center;">
+            When OFF: The hole is bound to the Boron atom. <br>
+            When ON: Electrons flow Left (+), causing the Hole to drift Right (-).
+        </p>
+    </div>
+
+<script>
+const canvas = document.getElementById('latticeCanvas');
+const ctx = canvas.getContext('2d');
+
+let fieldOn = false;
+const rows = 3;
+const cols = 5;
+const spacing = 120;
+const atomRadius = 22;
+
+// Boron location: 2nd column (index 1), middle row (index 1)
+const boronPos = { r: 1, c: 1 };
+let holePos = { ...boronPos };
+
+function toggleField() {
+    fieldOn = !fieldOn;
+    const display = document.getElementById('stateDisplay');
+    if (fieldOn) {
+        display.innerText = "Drifting (E-Field Active)";
+        display.className = "field-on";
+    } else {
+        display.innerText = "Stable (Hole at Boron)";
+        display.className = "field-off";
+        holePos = { ...boronPos }; // Reset hole to Boron when field is off
+    }
+    draw();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Bonds
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            let x = c * spacing + 60;
+            let y = r * spacing + 30;
+            if(c < cols-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+spacing, y); ctx.stroke(); }
+            if(r < rows-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x, y+spacing); ctx.stroke(); }
+        }
+    }
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const x = c * spacing + 60;
+            const y = r * spacing + 30;
+            const isBoron = (r === boronPos.r && c === boronPos.c);
+
+            // Draw Atom
+            ctx.beginPath();
+            ctx.arc(x, y, atomRadius, 0, Math.PI * 2);
+            ctx.fillStyle = isBoron ? '#facc15' : '#475569';
+            ctx.fill();
+            ctx.fillStyle = isBoron ? '#000' : '#fff';
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(isBoron ? "B" : "Si", x, y + 5);
+
+            // Valence Electrons
+            const pts = [{dx: 0, dy: -32}, {dx: 32, dy: 0}, {dx: 0, dy: 32}, {dx: -32, dy: 0}];
+
+            pts.forEach((pt, i) => {
+                // If the hole is at this atom, we draw the hole at the 'right' bond position
+                const isHoleSpot = (r === holePos.r && c === holePos.c && i === 1); 
+                
+                if (isHoleSpot) {
+                    ctx.beginPath();
+                    ctx.arc(x + pt.dx, y + pt.dy, 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(x + pt.dx, y + pt.dy, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fill();
+                }
+            });
+        }
+    }
+}
+
+function animate() {
+    if (fieldOn) {
+        // Move hole to the right
+        holePos.c++;
+        if (holePos.c >= cols) holePos.c = 0;
+        draw();
+    }
+    // Faster animation when field is on
+    setTimeout(animate, fieldOn ? 400 : 100);
+}
+
+draw();
+animate();
+</script>
+</body>
+</html>
