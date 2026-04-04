@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Heat Transfer Model</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .main-ui { display: flex; gap: 25px; background: #1a1a1a; padding: 30px; border-radius: 15px; border: 1px solid #333; box-shadow: 0 15px 50px rgba(0,0,0,0.9); }
+        .canvas-container { display: flex; flex-direction: column; gap: 15px; }
+        canvas { background: #000; border: 1px solid #444; border-radius: 4px; }
+        .panel { width: 300px; display: flex; flex-direction: column; gap: 20px; }
+        .res-box { padding: 15px; border-radius: 10px; border: 1px solid #444; }
+        .hot { border-left: 6px solid #ff4d4d; background: rgba(255, 77, 77, 0.05); }
+        .cold { border-left: 6px solid #4d94ff; background: rgba(77, 148, 255, 0.05); }
+        label { display: block; font-size: 0.9em; color: #bbb; margin-bottom: 8px; font-weight: 600; }
+        input[type=range] { width: 100%; accent-color: #555; cursor: pointer; }
+        h2 { margin-bottom: 30px; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+    <h2>Particle Model: Heat Conduction</h2>
+
+    <div class="main-ui">
+        <div class="canvas-container">
+            <canvas id="simCanvas" width="600" height="200"></canvas>
+            <canvas id="graphCanvas" width="600" height="250"></canvas>
+        </div>
+
+        <div class="panel">
+            <div class="res-box hot">
+                <label>Left Reservoir Temperature: <span id="th-val">90</span>°C</label>
+                <input type="range" id="t-hot" min="0" max="100" value="90">
+            </div>
+            
+            <div class="res-box cold">
+                <label>Right Reservoir Temperature: <span id="tc-val">10</span>°C</label>
+                <input type="range" id="t-cold" min="0" max="100" value="10">
+            </div>
+
+            <div class="res-box" style="background: rgba(255,255,255,0.03)">
+                <label>Material Thickness:</label>
+                <input type="range" id="thickness" min="3" max="20" step="1" value="10">
+                
+                <label style="margin-top:15px;">Material Conductivity:</label>
+                <input type="range" id="conductivity" min="0.05" max="0.6" step="0.01" value="0.3">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const gCanvas = document.getElementById('graphCanvas');
+        const gCtx = gCanvas.getContext('2d');
+        
+        const tHotSlider = document.getElementById('t-hot');
+        const tColdSlider = document.getElementById('t-cold');
+        const kSlider = document.getElementById('conductivity');
+        const lSlider = document.getElementById('thickness');
+
+        let particles = [];
+        const rows = 6;
+        const spacing = 26;
+        const MAX_COLS = 20; 
+        
+        const graphOffsetX = 70;
+        const graphOffsetY = 30;
+        const graphWidth = 480;
+        const graphHeight = 160;
+
+        class Particle {
+            constructor(x, y, col) {
+                this.originX = x; this.originY = y;
+                this.x = x; this.y = y;
+                this.vx = 0; this.vy = 0;
+                this.energy = 50;
+                this.col = col;
+            }
+            update() {
+                let jitter = Math.sqrt(this.energy) * 0.4;
+                this.vx += (Math.random() - 0.5) * jitter + (this.originX - this.x) * 0.15;
+                this.vy += (Math.random() - 0.5) * jitter + (this.originY - this.y) * 0.15;
+                this.vx *= 0.8; this.vy *= 0.8;
+                this.x += this.vx; this.y += this.vy;
+            }
+            draw() {
+                ctx.fillStyle = `hsl(${Math.max(0, 240 - this.energy * 2.2)}, 85%, 55%)`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, 7, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        function init() {
+            particles = [];
+            const cols = parseInt(lSlider.value);
+            const startX = 60; 
+            const startY = (canvas.height - (rows * spacing)) / 2;
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    particles.push(new Particle(startX + i * spacing, startY + j * spacing, i));
+                }
+            }
+        }
+
+        function drawFixedGraph() {
+            gCtx.strokeStyle = "#555";
+            gCtx.fillStyle = "#888";
+            gCtx.font = "12px Arial";
+            gCtx.lineWidth = 1;
+
+            // Y-Axis
+            gCtx.beginPath();
+            gCtx.moveTo(graphOffsetX, graphOffsetY);
+            gCtx.lineTo(graphOffsetX, graphOffsetY + graphHeight);
+            gCtx.stroke();
+            for(let i=0; i<=100; i+=20) {
+                let y = graphOffsetY + graphHeight - (i / 100 * graphHeight);
+                gCtx.fillText(i + "°C", graphOffsetX - 45, y + 5);
+                gCtx.moveTo(graphOffsetX - 5, y); gCtx.lineTo(graphOffsetX, y);
+            }
+            gCtx.stroke();
+
+            // X-Axis
+            gCtx.beginPath();
+            gCtx.moveTo(graphOffsetX, graphOffsetY + graphHeight);
+            gCtx.lineTo(graphOffsetX + graphWidth, graphOffsetY + graphHeight);
+            gCtx.stroke();
+            gCtx.fillText("Distance (Relative Units)", graphOffsetX + graphWidth/2 - 60, graphOffsetY + graphHeight + 45);
+            for(let i=0; i<=MAX_COLS; i+=5) {
+                let x = graphOffsetX + (i / MAX_COLS * graphWidth);
+                gCtx.fillText(i, x - 5, graphOffsetY + graphHeight + 20);
+                gCtx.moveTo(x, graphOffsetY + graphHeight); gCtx.lineTo(x, graphOffsetY + graphHeight + 5);
+            }
+            gCtx.stroke();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+            
+            drawFixedGraph();
+
+            const k = parseFloat(kSlider.value);
+            const cols = parseInt(lSlider.value);
+            const th = parseInt(tHotSlider.value);
+            const tc = parseInt(tColdSlider.value);
+
+            particles.forEach(p => {
+                if (p.col === 0) p.energy = th;
+                else if (p.col === cols - 1) p.energy = tc;
+            });
+
+            for (let i = 0; i < particles.length; i++) {
+                let p1 = particles[i];
+                particles.forEach(p2 => {
+                    let d2 = Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2);
+                    if (d2 < 1100) {
+                        let flow = (p1.energy - p2.energy) * k * 0.05;
+                        if (p1.col > 0 && p1.col < cols - 1) p1.energy -= flow;
+                        if (p2.col > 0 && p2.col < cols - 1) p2.energy += flow;
+                    }
+                });
+            }
+
+            let colData = new Array(cols).fill(0);
+            particles.forEach(p => {
+                p.update(); p.draw();
+                colData[p.col] += p.energy / rows;
+            });
+
+            gCtx.strokeStyle = "#00ff00";
+            gCtx.lineWidth = 3;
+            gCtx.beginPath();
+            colData.forEach((temp, i) => {
+                let px = graphOffsetX + (i / MAX_COLS * graphWidth);
+                let py = graphOffsetY + graphHeight - (temp / 100 * graphHeight);
+                if (i === 0) gCtx.moveTo(px, py); else gCtx.lineTo(px, py);
+            });
+            gCtx.stroke();
+
+            document.getElementById('th-val').innerText = th;
+            document.getElementById('tc-val').innerText = tc;
+
+            requestAnimationFrame(animate);
+        }
+
+        lSlider.oninput = init;
+        init();
+        animate();
+    </script>
+</body>
+</html>
