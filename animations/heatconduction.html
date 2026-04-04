@@ -15,6 +15,11 @@
         .cold { border-left: 6px solid #4d94ff; background: rgba(77, 148, 255, 0.05); }
         label { display: block; font-size: 0.9em; color: #bbb; margin-bottom: 8px; font-weight: 600; }
         input[type=range] { width: 100%; accent-color: #555; cursor: pointer; }
+        .btn-reset { 
+            padding: 12px; background: #444; color: white; border: none; border-radius: 6px; 
+            cursor: pointer; font-weight: bold; transition: background 0.2s; 
+        }
+        .btn-reset:hover { background: #666; }
         h2 { margin-bottom: 30px; letter-spacing: 1px; }
     </style>
 </head>
@@ -30,13 +35,13 @@
 
         <div class="panel">
             <div class="res-box hot">
-                <label>Left Reservoir Temperature: <span id="th-val">90</span>°C</label>
-                <input type="range" id="t-hot" min="0" max="100" value="90">
+                <label>Left Reservoir Temperature: <span id="th-val">0</span>°C</label>
+                <input type="range" id="t-hot" min="0" max="100" value="0">
             </div>
             
             <div class="res-box cold">
-                <label>Right Reservoir Temperature: <span id="tc-val">10</span>°C</label>
-                <input type="range" id="t-cold" min="0" max="100" value="10">
+                <label>Right Reservoir Temperature: <span id="tc-val">0</span>°C</label>
+                <input type="range" id="t-cold" min="0" max="100" value="0">
             </div>
 
             <div class="res-box" style="background: rgba(255,255,255,0.03)">
@@ -46,6 +51,8 @@
                 <label style="margin-top:15px;">Material Conductivity:</label>
                 <input type="range" id="conductivity" min="0.05" max="0.6" step="0.01" value="0.3">
             </div>
+
+            <button class="btn-reset" id="resetBtn">Reset Simulation</button>
         </div>
     </div>
 
@@ -59,6 +66,7 @@
         const tColdSlider = document.getElementById('t-cold');
         const kSlider = document.getElementById('conductivity');
         const lSlider = document.getElementById('thickness');
+        const resetBtn = document.getElementById('resetBtn');
 
         let particles = [];
         const rows = 6;
@@ -75,7 +83,7 @@
                 this.originX = x; this.originY = y;
                 this.x = x; this.y = y;
                 this.vx = 0; this.vy = 0;
-                this.energy = 50;
+                this.energy = 0; // Starts at 0
                 this.col = col;
             }
             update() {
@@ -101,6 +109,14 @@
                     particles.push(new Particle(startX + i * spacing, startY + j * spacing, i));
                 }
             }
+        }
+
+        function resetSim() {
+            tHotSlider.value = 0;
+            tColdSlider.value = 0;
+            lSlider.value = 10;
+            kSlider.value = 0.3;
+            init();
         }
 
         function drawFixedGraph() {
@@ -186,6 +202,7 @@
         }
 
         lSlider.oninput = init;
+        resetBtn.onclick = resetSim;
         init();
         animate();
     </script>
