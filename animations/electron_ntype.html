@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { position: relative; border: 3px solid #334155; border-radius: 12px; background: #020617; padding: 20px; }
+        canvas { display: block; }
+        .ui { margin-top: 20px; background: #1e293b; padding: 20px; border-radius: 12px; width: 650px; border: 1px solid #475569; }
+        .legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 15px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        button { background: #38bdf8; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; color: #020617; }
+        .term { font-family: monospace; font-weight: bold; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+
+    <h2>N-Type Semiconductor (Silicon + Phosphorus)</h2>
+    
+    <div class="legend">
+        <span><div class="dot" style="background:#4ade80"></div> Phosphorus (Donor)</span>
+        <span><div class="dot" style="background:#475569"></div> Silicon</span>
+        <span><div class="dot" style="background:#38bdf8; box-shadow: 0 0 8px #38bdf8;"></div> Free Electron</span>
+    </div>
+
+    <div class="container">
+        <canvas id="nTypeCanvas" width="700" height="350"></canvas>
+    </div>
+
+    <div class="ui">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="fieldStatus" style="font-weight: bold; color: #94a3b8;">Field: OFF</span>
+            <button onclick="toggleField()">Toggle Electric Field</button>
+        </div>
+        <p style="font-size: 0.9rem; color: #94a3b8; margin-top: 15px;">
+            <b>Notice:</b> The Phosphorus atom (green) has 5 valence electrons. 4 are used for bonds, and the 5th becomes a "Free Electron" that drifts toward the <b>Positive Terminal</b> when the field is ON.
+        </p>
+    </div>
+
+<script>
+const canvas = document.getElementById('nTypeCanvas');
+const ctx = canvas.getContext('2d');
+
+let fieldOn = false;
+const rows = 3;
+const cols = 5;
+const spacing = 130;
+const electrons = [];
+
+// Initialize extra electrons (one for each Phosphorus dopant)
+function init() {
+    // We'll place one Phosphorus atom in the second column
+    electrons.push({ x: 1 * spacing + 110, y: 1 * spacing + 75, vx: 0, vy: 0 });
+}
+
+function toggleField() {
+    fieldOn = !fieldOn;
+    document.getElementById('fieldStatus').innerText = fieldOn ? "Field: ON (Electrons → Left [+])" : "Field: OFF";
+    document.getElementById('fieldStatus').style.color = fieldOn ? "#22c55e" : "#94a3b8";
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Terminals if field is on
+    if(fieldOn) {
+        ctx.fillStyle = "#38bdf8"; ctx.font = "20px bold monospace";
+        ctx.fillText("[ + ]", 20, 175);
+        ctx.fillStyle = "#ef4444";
+        ctx.fillText("[ − ]", 650, 175);
+    }
+
+    // Draw Lattice
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const x = c * spacing + 80;
+            const y = r * spacing + 45;
+            const isPhosphorus = (r === 1 && c === 1);
+
+            // Bonds
+            ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 2;
+            if(c < cols-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+spacing, y); ctx.stroke(); }
+            if(r < rows-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x, y+spacing); ctx.stroke(); }
+
+            // Atoms
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fillStyle = isPhosphorus ? '#4ade80' : '#475569';
+            ctx.fill();
+            ctx.fillStyle = isPhosphorus ? '#000' : '#fff';
+            ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
+            ctx.fillText(isPhosphorus ? "P" : "Si", x, y + 5);
+
+            // Bound Valence Electrons (the 4 shared ones)
+            const pts = [{dx:0, dy:-30}, {dx:30, dy:0}, {dx:0, dy:30}, {dx:-30, dy:0}];
+            pts.forEach(pt => {
+                ctx.beginPath(); ctx.arc(x+pt.dx, y+pt.dy, 4, 0, Math.PI*2);
+                ctx.fillStyle = "#64748b"; ctx.fill();
+            });
+        }
+    }
+
+    // Update and Draw Free Electrons
+    electrons.forEach(e => {
+        if (fieldOn) {
+            e.vx = -3; // Move toward positive terminal (Left)
+            e.vy = (Math.random() - 0.5) * 1;
+        } else {
+            // Random thermal motion
+            e.vx = (Math.random() - 0.5) * 2;
+            e.vy = (Math.random() - 0.5) * 2;
+        }
+
+        e.x += e.vx; e.y += e.vy;
+
+        // Wrap around screen
+        if (e.x < 0) e.x = canvas.width;
+        if (e.x > canvas.width) e.x = 0;
+        if (e.y < 0) e.y = canvas.height;
+        if (e.y > canvas.height) e.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowBlur = 10; ctx.shadowColor = "#38bdf8";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+
+    requestAnimationFrame(draw);
+}
+
+init();
+draw();
+</script>
+</body>
+</html>
