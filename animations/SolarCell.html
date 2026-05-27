@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Cell PN Junction Mechanism</title>
+    <style>
+        :root {
+            --n-type: #fce4d6;
+            --p-type: #d9e1f2;
+            --depletion: #ffffff;
+            --electron: #e74c3c;
+            --hole: #3498db;
+            --wire: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        button {
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #f1c40f;
+            color: #2c3e50;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+
+        button:hover { background-color: #f39c12; transform: translateY(-2px); }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; }
+
+        .status-panel {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            height: 35px;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 5px 20px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .simulation-container {
+            position: relative;
+            width: 750px;
+            height: 540px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* Solar Cell Structure */
+        .solar-cell {
+            position: absolute;
+            left: 160px;
+            top: 120px;
+            width: 320px;
+            height: 340px;
+            border: 2px solid #7f8c8d;
+            box-sizing: border-box;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Contact Fingers */
+        .electrode-negative {
+            position: absolute;
+            width: 60px;
+            height: 12px;
+            background: #444;
+            top: -12px;
+        }
+        .el-neg-left { left: 0; }
+        .el-neg-right { right: 0; }
+
+        .electrode-positive {
+            position: absolute;
+            width: 100%;
+            height: 10px;
+            background: #555;
+            bottom: 0;
+        }
+
+        /* Layer definitions */
+        .n-type {
+            flex: 0 0 130px;
+            background-color: var(--n-type);
+            font-weight: bold;
+            font-size: 22px;
+            color: #2c3e50;
+            padding: 15px;
+        }
+
+        /* Depletion Zone (Space Charge Region) */
+        .depletion-zone {
+            flex: 0 0 70px;
+            background-color: var(--depletion);
+            border-top: 1px dashed #7f8c8d;
+            border-bottom: 1px dashed #7f8c8d;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .p-type {
+            flex: 1;
+            background-color: var(--p-type);
+            font-weight: bold;
+            font-size: 22px;
+            color: #2c3e50;
+            padding: 15px;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        /* Fixed Charge Distribution at Interfaces */
+        .charge-row {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 10px;
+            box-sizing: border-box;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .pos-charge-distribution {
+            top: 2px;
+            color: #c0392b;
+        }
+        
+        .neg-charge-distribution {
+            bottom: 1px;
+            color: #2980b9;
+        }
+
+        /* Electric Potential Vector Indicator */
+        .electric-field-container {
+            position: absolute;
+            left: 15px;
+            top: 210px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 130px;
+        }
+
+        .ef-label {
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 6px;
+        }
+
+        .ef-arrow-line {
+            width: 3px;
+            height: 55px;
+            background: #e74c3c;
+            position: relative;
+        }
+
+        .ef-arrow-line::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: -5px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #e74c3c;
+        }
+
+        /* External Circuit Elements */
+        .wire { position: absolute; background-color: var(--wire); }
+        .wire-top { top: 109px; left: 450px; width: 170px; height: 3px; }
+        .wire-right-1 { top: 109px; left: 620px; width: 3px; height: 115px; }
+        .wire-right-2 { top: 300px; left: 620px; width: 3px; height: 165px; }
+        .wire-bottom { top: 462px; left: 450px; width: 173px; height: 3px; }
+
+        /* REDESIGNED LOAD: LIGHT BULB STYLE */
+        .load {
+            position: absolute;
+            top: 220px;
+            left: 591px;
+            width: 60px;
+            height: 80px;
+            background: #bdc3c7;
+            border-radius: 50% 50% 20% 20%;
+            border: 2px solid #7f8c8d;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 26px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            cursor: default;
+        }
+        
+        .load span {
+            font-size: 10px;
+            font-weight: bold;
+            color: #555;
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Bulb turned ON state */
+        .load.active { 
+            background: #f1c40f; 
+            border-color: #f39c12;
+            box-shadow: 0 0 35px #f1c40f, inset 0 0 10px #fff;
+        }
+        .load.active span {
+            color: #2c3e50;
+        }
+
+        /* Environmental Elements */
+        .sun {
+            position: absolute;
+            top: 10px;
+            left: 300px;
+            font-size: 45px;
+            text-align: center;
+        }
+        .sun span { display: block; font-size: 12px; font-weight: bold; color: #d35400; }
+
+        /* Diagram Step Labels */
+        .step-label {
+            position: absolute;
+            font-size: 13px;
+            font-weight: bold;
+            color: #2c3e50;
+            background: rgba(255,255,255,0.85);
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.4s;
+            z-index: 5;
+        }
+
+        /* Moving Particles */
+        .particle {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.8s linear;
+            z-index: 10;
+            opacity: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .photon { background-color: #f1c40f; box-shadow: 0 0 12px #f1c40f; color: #333; }
+        .electron { background-color: var(--electron); }
+        .hole { background-color: var(--hole); }
+        
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>Solar Cell PN Junction Mechanism</h2>
+        <button id="start-btn" onclick="runSimulation()">☀️ Start Animation Sequence</button>
+    </div>
+    
+    <div class="status-panel" id="status-text">Click the button to visualize the process step-by-step</div>
+
+    <div class="simulation-container" id="sim-container">
+        <div class="sun">☀️<span>Sunlight</span></div>
+
+        <div class="electric-field-container">
+            <div class="ef-label">Electric potential<br><b>(E)</b></div>
+            <div class="ef-arrow-line"></div>
+        </div>
+
+        <div class="wire wire-top"></div>
+        <div class="wire wire-right-1"></div>
+        
+        <div class="load" id="load">
+            💡<span>Bulb</span>
+        </div>
+        
+        <div class="wire wire-right-2"></div>
+        <div class="wire wire-bottom"></div>
+
+        <div class="solar-cell">
+            <div class="electrode-negative el-neg-left"></div>
+            <div class="electrode-negative el-neg-right"></div>
+            
+            <div class="n-type">n-type</div>
+            
+            <div class="depletion-zone">
+                <div class="charge-row pos-charge-distribution">
+                    <span>+</span><span>+</span><span>+</span><span>+</span><span>+</span><span>+</span><span>+</span><span>+</span>
+                </div>
+                
+                Depletion zone
+                
+                <div class="charge-row neg-charge-distribution">
+                    <span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>
+                </div>
+            </div>
+            
+            <div class="p-type">p-type</div>
+            <div class="electrode-positive"></div>
+        </div>
+
+        <div class="step-label" id="step1-lbl" style="top: 50px; left: 400px;">(1) light irritation (E=hv)</div>
+        <div class="step-label" id="step2-lbl" style="top: 220px; left: 190px;">(2) e-h generation</div>
+        <div class="step-label" id="step3-lbl" style="top: 255px; left: 345px;">(3) e-h separation</div>
+        <div class="step-label" id="step4-lbl" style="top: 190px; left: 350px;">(4) Transportation</div>
+        <div class="step-label" id="step5-lbl" style="top: 390px; left: 340px;">(5) Recombination</div>
+    </div>
+
+    <script>
+        const simContainer = document.getElementById('sim-container');
+        const statusText = document.getElementById('status-text');
+        const load = document.getElementById('load');
+        const startBtn = document.getElementById('start-btn');
+
+        const labels = {
+            1: document.getElementById('step1-lbl'),
+            2: document.getElementById('step2-lbl'),
+            3: document.getElementById('step3-lbl'),
+            4: document.getElementById('step4-lbl'),
+            5: document.getElementById('step5-lbl')
+        };
+
+        function hideAllLabels() { Object.values(labels).forEach(lbl => lbl.style.opacity = '0'); }
+
+        function showLabel(num) {
+            hideAllLabels();
+            if(labels[num]) labels[num].style.opacity = '1';
+        }
+
+        function createParticle(type, symbol, x, y) {
+            const el = document.createElement('div');
+            el.className = `particle ${type}`;
+            el.innerHTML = symbol;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            simContainer.appendChild(el);
+            void el.offsetWidth;
+            el.style.opacity = '1';
+            return el;
+        }
+
+        function runSimulation() {
+            startBtn.disabled = true;
+            hideAllLabels();
+            document.querySelectorAll('.particle').forEach(p => p.remove());
+            load.classList.remove('active');
+
+            // --- STEP 1: Light Irradiation ---
+            statusText.innerText = "Step 1: Light Irradiation hitting the cell (E = hv)";
+            showLabel(1);
+            const photon = createParticle('photon', 'v', 320, 45);
+            
+            setTimeout(() => {
+                photon.style.left = "290px";
+                photon.style.top = "270px"; 
+            }, 100);
+
+            // --- STEP 2: Electron-Hole Generation ---
+            setTimeout(() => {
+                photon.style.opacity = 0;
+                statusText.innerText = "Step 2: Photon absorbed creating an Electron (e-) & Hole (h+) pair";
+                showLabel(2);
+                
+                const electron = createParticle('electron', 'e-', 290, 270);
+                const hole = createParticle('hole', 'h+', 290, 270);
+
+                // --- STEP 3: E-Field Separation ---
+                setTimeout(() => {
+                    statusText.innerText = "Step 3: Internal Electric Potential field separates the charges";
+                    showLabel(3);
+                    
+                    electron.style.top = '170px'; 
+                    hole.style.top = '370px';    
+
+                    // --- STEP 4: Transportation ---
+                    setTimeout(() => {
+                        statusText.innerText = "Step 4: Free electrons transport through circuit to power the light bulb";
+                        showLabel(4);
+                        
+                        electron.style.left = '435px';
+                        electron.style.top = '130px';
+
+                        setTimeout(() => {
+                            electron.style.top = '98px';
+                            
+                            setTimeout(() => {
+                                electron.style.left = '610px';
+                                
+                                setTimeout(() => {
+                                    electron.style.top = '250px'; // Enters the bulb body
+                                    
+                                    setTimeout(() => {
+                                        load.classList.add('active'); // Light bulb glows!
+                                        statusText.innerText = "Electricity generated! Electron illuminating the bulb";
+                                        
+                                        setTimeout(() => {
+                                            electron.style.top = '452px'; // Exits the bulb
+                                            load.classList.remove('active');
+                                            
+                                            setTimeout(() => {
+                                                electron.style.left = '320px';
+                                                
+                                                // --- STEP 5: Recombination ---
+                                                setTimeout(() => {
+                                                    statusText.innerText = "Step 5: Electron returns to complete circuit and recombines with hole";
+                                                    showLabel(5);
+                                                    
+                                                    electron.style.top = '370px';
+                                                    
+                                                    setTimeout(() => {
+                                                        electron.style.opacity = 0;
+                                                        hole.style.opacity = 0;
+                                                        
+                                                        setTimeout(() => {
+                                                            statusText.innerText = "Cycle Complete! Ready for operation.";
+                                                            hideAllLabels();
+                                                            startBtn.disabled = false;
+                                                        }, 1000);
+                                                    }, 900);
+                                                }, 1000);
+                                            }, 1000);
+                                        }, 1200);
+                                    }, 800);
+                                }, 800);
+                            }, 800);
+                        }, 800);
+                    }, 1500);
+                }, 1500);
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
