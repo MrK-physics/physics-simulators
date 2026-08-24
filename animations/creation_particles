@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pair Production Simulator</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-red: #f87171;
+            --accent-yellow: #facc15;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            padding: 16px 24px;
+            background-color: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 380px;
+            background-color: #090d16;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls {
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 600px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 0.875rem;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-group label span.val {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .btn-group {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            background-color: #7dd3fc;
+        }
+
+        .readout {
+            grid-column: 1 / -1;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .readout-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .readout-item .title {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .readout-item .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-top: 2px;
+        }
+
+        .status-msg {
+            grid-column: 1 / -1;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-align: center;
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        .status-success {
+            color: #4ade80;
+            background-color: rgba(74, 222, 128, 0.1);
+        }
+
+        .status-fail {
+            color: var(--accent-red);
+            background-color: rgba(248, 113, 113, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Pair Production Simulator ($\gamma \rightarrow e^- + e^+$)</h1>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="energySlider">
+                Photon Energy ($E_\gamma$)
+                <span class="val" id="energyVal">1.50 MeV</span>
+            </label>
+            <input type="range" id="energySlider" min="0.50" max="3.00" step="0.05" value="1.50">
+        </div>
+
+        <div class="control-group">
+            <label for="bFieldSlider">
+                Magnetic Field ($B$)
+                <span class="val" id="bFieldVal">1.0 T</span>
+            </label>
+            <input type="range" id="bFieldSlider" min="0.2" max="2.0" step="0.1" value="1.0">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-primary" id="fireBtn">Fire Gamma Photon</button>
+        </div>
+
+        <div class="readout">
+            <div class="readout-item">
+                <span class="title">Rest Energy Cost</span>
+                <span class="value" style="color: var(--accent-yellow)">1.022 MeV</span>
+            </div>
+            <div class="readout-item">
+                <span class="title">Total Kinetic Energy</span>
+                <span class="value" id="keTotalVal">0.478 MeV</span>
+            </div>
+            <div class="readout-item">
+                <span class="title">KE per Particle</span>
+                <span class="value" id="kePartVal">0.239 MeV</span>
+            </div>
+        </div>
+
+        <div id="statusMsg" class="status-msg status-success">
+            Ready to simulate.
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const energySlider = document.getElementById('energySlider');
+    const energyVal = document.getElementById('energyVal');
+    const bFieldSlider = document.getElementById('bFieldSlider');
+    const bFieldVal = document.getElementById('bFieldVal');
+    const fireBtn = document.getElementById('fireBtn');
+    const keTotalVal = document.getElementById('keTotalVal');
+    const kePartVal = document.getElementById('kePartVal');
+    const statusMsg = document.getElementById('statusMsg');
+
+    const THRESHOLD = 1.022; // MeV (2 x 0.511)
+    
+    let animId = null;
+    let state = 'idle'; // 'idle', 'photon', 'particles'
+    let photonX = 0;
+    let nucleusX = 0;
+    let nucleusY = 0;
+    
+    // Particle state
+    let particles = [];
+
+    function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        nucleusX = canvas.width * 0.45;
+        nucleusY = canvas.height * 0.5;
+        drawStatic();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function updateReadouts() {
+        const E = parseFloat(energySlider.value);
+        energyVal.textContent = E.toFixed(2) + ' MeV';
+        bFieldVal.textContent = parseFloat(bFieldSlider.value).toFixed(1) + ' T';
+
+        if (E < THRESHOLD) {
+            keTotalVal.textContent = '0.000 MeV';
+            kePartVal.textContent = '0.000 MeV';
+            statusMsg.textContent = 'Sub-threshold energy (< 1.022 MeV) — Pair production impossible!';
+            statusMsg.className = 'status-msg status-fail';
+        } else {
+            const keTotal = E - THRESHOLD;
+            const kePart = keTotal / 2;
+            keTotalVal.textContent = keTotal.toFixed(3) + ' MeV';
+            kePartVal.textContent = kePart.toFixed(3) + ' MeV';
+            statusMsg.textContent = 'Sufficient energy (≥ 1.022 MeV) — Pair production permitted!';
+            statusMsg.className = 'status-msg status-success';
+        }
+    }
+
+    energySlider.addEventListener('input', updateReadouts);
+    bFieldSlider.addEventListener('input', updateReadouts);
+
+    function drawNucleus() {
+        // Heavy Nucleus symbol
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(nucleusX, nucleusY, 14, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 15;
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Pb', nucleusX, nucleusY);
+        ctx.restore();
+    }
+
+    function drawStatic() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Grid background
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        const gridSize = 30;
+        for (let x = 0; x < canvas.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        drawNucleus();
+    }
+
+    function resetSimulation() {
+        if (animId) cancelAnimationFrame(animId);
+        state = 'idle';
+        photonX = 0;
+        particles = [];
+        drawStatic();
+    }
+
+    function fire() {
+        resetSimulation();
+        const E = parseFloat(energySlider.value);
+        const B = parseFloat(bFieldSlider.value);
+        
+        state = 'photon';
+        photonX = 0;
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawStatic();
+
+            if (state === 'photon') {
+                photonX += 6;
+                
+                // Draw Photon (Wavy yellow line)
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = '#facc15';
+                ctx.shadowBlur = 8;
+
+                const amplitude = 8;
+                const wavelength = 15;
+                ctx.moveTo(0, nucleusY);
+                for (let x = 0; x <= photonX; x += 2) {
+                    const y = nucleusY + Math.sin(x / wavelength * Math.PI * 2) * amplitude;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+
+                // Check collision/interaction at nucleus
+                if (photonX >= nucleusX) {
+                    if (E < THRESHOLD) {
+                        // Photon continues through without reaction
+                        state = 'photon_passed';
+                    } else {
+                        // Pair Production occurs!
+                        state = 'particles';
+                        const ke = (E - THRESHOLD) / 2;
+                        
+                        // Velocity/radius proportional to kinetic energy and inverse to B-field
+                        const v0 = Math.max(1.5, Math.sqrt(ke) * 4);
+                        const radiusBase = (Math.sqrt(ke) + 0.2) * (40 / B);
+
+                        particles = [
+                            {
+                                type: 'electron',
+                                x: nucleusX,
+                                y: nucleusY,
+                                vx: v0 * 0.8,
+                                vy: -v0 * 0.5,
+                                charge: -1,
+                                color: '#38bdf8',
+                                path: [],
+                                radius: radiusBase
+                            },
+                            {
+                                type: 'positron',
+                                x: nucleusX,
+                                y: nucleusY,
+                                vx: v0 * 0.8,
+                                vy: v0 * 0.5,
+                                charge: 1,
+                                color: '#f87171',
+                                path: [],
+                                radius: radiusBase
+                            }
+                        ];
+                    }
+                }
+            } else if (state === 'photon_passed') {
+                photonX += 6;
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 2.5;
+                const amplitude = 8;
+                const wavelength = 15;
+                ctx.moveTo(0, nucleusY);
+                for (let x = 0; x <= Math.min(photonX, canvas.width); x += 2) {
+                    const y = nucleusY + Math.sin(x / wavelength * Math.PI * 2) * amplitude;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+
+                if (photonX < canvas.width + 50) {
+                    animId = requestAnimationFrame(animate);
+                }
+                return;
+            } else if (state === 'particles') {
+                // Flash effect at creation point
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(nucleusX, nucleusY, 20, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fill();
+                ctx.restore();
+
+                let activeParticles = false;
+
+                particles.forEach(p => {
+                    if (p.path.length < 150) {
+                        activeParticles = true;
+                        
+                        // Magnetic Lorentz force curving (circle path approximation)
+                        // B field causes perpendicular force
+                        const angleStep = (p.charge * 0.04 * B) / (p.radius / 30);
+                        
+                        const cos = Math.cos(angleStep);
+                        const sin = Math.sin(angleStep);
+                        
+                        const newVx = p.vx * cos - p.vy * sin;
+                        const newVy = p.vx * sin + p.vy * cos;
+                        
+                        p.vx = newVx;
+                        p.vy = newVy;
+                        
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        
+                        p.path.push({x: p.x, y: p.y});
+                    }
+
+                    // Draw track path
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 6;
+                    
+                    if (p.path.length > 0) {
+                        ctx.moveTo(nucleusX, nucleusY);
+                        p.path.forEach(pt => ctx.lineTo(pt.x, pt.y));
+                    }
+                    ctx.stroke();
+
+                    // Draw head particle
+                    if (p.path.length > 0) {
+                        const head = p.path[p.path.length - 1];
+                        ctx.beginPath();
+                        ctx.arc(head.x, head.y, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.fill();
+                        
+                        // Label
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '12px sans-serif';
+                        ctx.fillText(p.type === 'electron' ? 'e⁻ (electron)' : 'e⁺ (positron)', head.x + 8, head.y + 4);
+                    }
+                    ctx.restore();
+                });
+
+                if (!activeParticles) return;
+            }
+
+            animId = requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    fireBtn.addEventListener('click', fire);
+    
+    // Initial setup
+    resizeCanvas();
+    updateReadouts();
+</script>
+
+</body>
+</html>
