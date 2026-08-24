@@ -190,7 +190,7 @@
 
 <div class="container">
     <div class="header">
-        <h1>Pair Production Simulator ($\gamma \rightarrow e^- + e^+$)</h1>
+        <h1>Pair Production Simulator </h1>
     </div>
 
     <div class="canvas-container">
@@ -200,7 +200,7 @@
     <div class="controls">
         <div class="control-group">
             <label for="energySlider">
-                Photon Energy ($E_\gamma$)
+                Photon Energy
                 <span class="val" id="energyVal">1.50 MeV</span>
             </label>
             <input type="range" id="energySlider" min="0.50" max="3.00" step="0.05" value="1.50">
@@ -208,10 +208,10 @@
 
         <div class="control-group">
             <label for="bFieldSlider">
-                Magnetic Field ($B$)
+                Magnetic Field B
                 <span class="val" id="bFieldVal">1.0 T</span>
             </label>
-            <input type="range" id="bFieldSlider" min="0.2" max="2.0" step="0.1" value="1.0">
+            <input type="range" id="bFieldSlider" min="0" max="2.0" step="0.1" value="1.0">
         </div>
 
         <div class="btn-group">
