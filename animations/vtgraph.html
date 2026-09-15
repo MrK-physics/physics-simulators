@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velocity-Time Graph Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fafafa;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 15px;
+            color: #333;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-group input[type="range"] {
+            width: 150px;
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            cursor: pointer;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 18px;
+            font-size: 15px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .readout {
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Velocity-Time (v-t) Graph</h2>
+    <canvas id="graphCanvas" width="600" height="400"></canvas>
+    
+    <div class="readout">
+        Time: <span id="timeVal">0.0</span> s | 
+        Velocity: <span id="velVal">0.0</span> m/s | 
+        Displacement (Area): <span id="dispVal">0.0</span> m
+    </div>
+
+    <div class="controls">
+        <div class="control-row">
+            <div class="slider-group">
+                <label for="stepDurationSlider">Interval Width (s):</label>
+                <input type="range" id="stepDurationSlider" min="0.2" max="2.5" step="0.1" value="2.0">
+                <span id="stepDurationLabel">2.0 s</span>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="shadeToggle" checked>
+                <label for="shadeToggle">Shade Area Under Curve</label>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button id="restartBtn">Restart Animation</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const timeValEl = document.getElementById('timeVal');
+    const velValEl = document.getElementById('velVal');
+    const dispValEl = document.getElementById('dispVal');
+    const restartBtn = document.getElementById('restartBtn');
+    const stepDurationSlider = document.getElementById('stepDurationSlider');
+    const stepDurationLabel = document.getElementById('stepDurationLabel');
+    const shadeToggle = document.getElementById('shadeToggle');
+
+    // Fixed graph domain scales
+    const maxTime = 10.0;         // Fixed time scale on X-axis (0 to 10s)
+    const velIncrement = 2;       // Velocity increase per step (m/s)
+    
+    let stepDuration = parseFloat(stepDurationSlider.value); 
+    let maxSteps = Math.ceil(maxTime / stepDuration);
+    let maxVel = maxSteps * velIncrement;
+
+    // Canvas styling bounds
+    const padding = 60;
+    const graphWidth = canvas.width - 2 * padding;
+    const graphHeight = canvas.height - 2 * padding;
+
+    let currentTime = 0;
+    let animationFrameId = null;
+    let lastTimeStamp = null;
+
+    // Color palette for alternating interval shading
+    const shadeColors = [
+        'rgba(0, 123, 255, 0.25)',  // Blue tint
+        'rgba(40, 167, 69, 0.25)',   // Green tint
+        'rgba(255, 193, 7, 0.25)',   // Yellow tint
+        'rgba(23, 162, 184, 0.25)',  // Cyan tint
+        'rgba(108, 117, 125, 0.25)'  // Gray tint
+    ];
+
+    function updateParameters() {
+        stepDuration = parseFloat(stepDurationSlider.value);
+        stepDurationLabel.textContent = stepDuration.toFixed(1) + ' s';
+        maxSteps = Math.ceil(maxTime / stepDuration);
+        maxVel = maxSteps * velIncrement;
+    }
+
+    // Convert (time, velocity) physics values to (x, y) canvas coordinates
+    function getCanvasCoords(t, v) {
+        const x = padding + (t / maxTime) * graphWidth;
+        const y = (canvas.height - padding) - (v / maxVel) * graphHeight;
+        return { x, y };
+    }
+
+    // Calculate velocity at time t
+    function getVelocityAt(t) {
+        if (t >= maxTime) return maxVel;
+        const currentStep = Math.floor(t / stepDuration);
+        return (currentStep + 1) * velIncrement;
+    }
+
+    // Calculate total displacement (area under v-t graph up to time t)
+    function getDisplacementAt(t) {
+        let displacement = 0;
+        const fullSteps = Math.floor(t / stepDuration);
+        
+        // Sum displacement for completed steps
+        for (let i = 0; i < fullSteps; i++) {
+            const v = (i + 1) * velIncrement;
+            displacement += v * stepDuration;
+        }
+        
+        // Add displacement for current partial step
+        const remainderTime = t - (fullSteps * stepDuration);
+        if (remainderTime > 0 && t < maxTime) {
+            const currentV = (fullSteps + 1) * velIncrement;
+            displacement += currentV * remainderTime;
+        }
+        
+        return displacement;
+    }
+
+    // Draw shaded areas for intervals up to currentTime
+    function drawShading() {
+        if (!shadeToggle.checked) return;
+
+        const currentStep = Math.floor(currentTime / stepDuration);
+
+        for (let step = 0; step <= currentStep; step++) {
+            const tStart = step * stepDuration;
+            if (tStart >= currentTime) break;
+
+            const tEnd = Math.min((step + 1) * stepDuration, currentTime);
+            const v = (step + 1) * velIncrement;
+
+            const p1 = getCanvasCoords(tStart, 0);
+            const p2 = getCanvasCoords(tStart, v);
+            const p3 = getCanvasCoords(tEnd, v);
+            const p4 = getCanvasCoords(tEnd, 0);
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+
+            // Use alternating colors per interval
+            ctx.fillStyle = shadeColors[step % shadeColors.length];
+            ctx.fill();
+
+            // Draw thin vertical boundary lines between intervals
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+
+    // Draw grid, axes, labels, and the graph path
+    function drawGraph() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Draw Shaded Areas (Underneath everything)
+        drawShading();
+
+        // 2. Draw Axes
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#333';
+        // Y-axis
+        ctx.moveTo(padding, padding / 2);
+        ctx.lineTo(padding, canvas.height - padding);
+        // X-axis
+        ctx.lineTo(canvas.width - padding / 2, canvas.height - padding);
+        ctx.stroke();
+
+        // Axis Labels
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#333';
+        ctx.textAlign = 'center';
+        ctx.fillText('Time (s)', canvas.width / 2, canvas.height - 15);
+        
+        ctx.save();
+        ctx.translate(20, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Velocity (m/s)', 0, 0);
+        ctx.restore();
+
+        // 3. Draw Grid and Ticks
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.fillStyle = '#666';
+
+        // FIXED Time ticks (X-axis ticks always stay fixed at 0, 2, 4, 6, 8, 10s)
+        const timeTickInterval = 2.0;
+        for (let t = 0; t <= maxTime; t += timeTickInterval) {
+            const { x } = getCanvasCoords(t, 0);
+            ctx.beginPath();
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, canvas.height - padding);
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.fillText(t.toFixed(0), x, canvas.height - padding + 20);
+        }
+
+        // Velocity ticks & horizontal grid lines
+        const vStep = maxVel / 5;
+        for (let v = 0; v <= maxVel; v += vStep) {
+            const { y } = getCanvasCoords(0, v);
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(canvas.width - padding, y);
+            ctx.stroke();
+
+            ctx.textAlign = 'right';
+            ctx.fillText(v.toFixed(0), padding - 10, y + 5);
+        }
+
+        // 4. Draw Step-Function Velocity Line up to currentTime
+        ctx.beginPath();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#007bff';
+
+        let startPt = getCanvasCoords(0, getVelocityAt(0));
+        ctx.moveTo(startPt.x, startPt.y);
+
+        const dt = 0.01;
+        for (let t = 0; t <= currentTime; t += dt) {
+            const v = getVelocityAt(t);
+            const pt = getCanvasCoords(t, v);
+            ctx.lineTo(pt.x, pt.y);
+        }
+        
+        const currentV = getVelocityAt(currentTime);
+        const currentPt = getCanvasCoords(currentTime, currentV);
+        ctx.lineTo(currentPt.x, currentPt.y);
+        ctx.stroke();
+
+        // 5. Draw animated red dot tracker
+        ctx.beginPath();
+        ctx.arc(currentPt.x, currentPt.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff4d4d';
+        ctx.fill();
+        ctx.strokeStyle = '#b30000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    // Main Animation Loop
+    function animate(timestamp) {
+        if (!lastTimeStamp) lastTimeStamp = timestamp;
+        const deltaTime = (timestamp - lastTimeStamp) / 1000;
+        lastTimeStamp = timestamp;
+
+        if (currentTime < maxTime) {
+            currentTime += deltaTime;
+            if (currentTime > maxTime) currentTime = maxTime;
+
+            // Update UI text values
+            timeValEl.textContent = currentTime.toFixed(1);
+            velValEl.textContent = getVelocityAt(currentTime).toFixed(1);
+            dispValEl.textContent = getDisplacementAt(currentTime).toFixed(1);
+
+            drawGraph();
+            animationFrameId = requestAnimationFrame(animate);
+        } else {
+            // Animation finished
+            timeValEl.textContent = maxTime.toFixed(1);
+            velValEl.textContent = maxVel.toFixed(1);
+            dispValEl.textContent = getDisplacementAt(maxTime).toFixed(1);
+            drawGraph();
+        }
+    }
+
+    function resetAnimation() {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        updateParameters();
+        currentTime = 0;
+        lastTimeStamp = null;
+        timeValEl.textContent = '0.0';
+        velValEl.textContent = getVelocityAt(0).toFixed(1);
+        dispValEl.textContent = '0.0';
+        drawGraph();
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // Event listeners
+    restartBtn.addEventListener('click', resetAnimation);
+    stepDurationSlider.addEventListener('input', resetAnimation);
+    shadeToggle.addEventListener('change', drawGraph);
+
+    // Initial Start
+    resetAnimation();
+</script>
+
+</body>
+</html>
