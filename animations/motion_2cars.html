@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinematics Lab: Uniform vs. Accelerated Motion</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        carA: {
+                            DEFAULT: '#00f3ff',
+                            glow: 'rgba(0, 243, 255, 0.4)',
+                            dark: '#008b94'
+                        },
+                        carB: {
+                            DEFAULT: '#ff6b00',
+                            glow: 'rgba(255, 107, 0, 0.4)',
+                            dark: '#a84600'
+                        },
+                        lab: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            border: '#1f293d',
+                            accent: '#3b82f6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars and styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f293d;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-carA {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+        }
+        .glow-carB {
+            box-shadow: 0 0 15px rgba(255, 107, 0, 0.3);
+        }
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-lab-bg text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="border-b border-lab-border bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
+                    <i class="fa-solid font-bold fa-gauge-high text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        KINEMATICS LAB 
+                        <span class="text-xs font-mono font-normal px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">v2.5</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Uniform Motion ($a=0$) vs. Uniformly Accelerated Motion ($a=\text{const}$)</p>
+                </div>
+            </div>
+
+            <!-- Preset Scenarios Dropdown -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+                    <i class="fa-solid fa-flask text-amber-400"></i>
+                    <span>Presets:</span>
+                    <select id="presetSelect" class="bg-transparent text-white font-medium focus:outline-none cursor-pointer">
+                        <option value="classic" class="bg-slate-900">Classic Catch-Up</option>
+                        <option value="dragRace" class="bg-slate-900">Drag Race from Rest</option>
+                        <option value="twoOvertakes" class="bg-slate-900">Two Overtake Intersection</option>
+                        <option value="braking" class="bg-slate-900">Car B Emergency Braking</option>
+                        <option value="equalStart" class="bg-slate-900">Equal Velocity Head-to-Head</option>
+                    </select>
+                </div>
+
+                <button id="soundToggleBtn" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Toggle Sound Effects">
+                    <i id="soundIcon" class="fa-solid fa-volume-xmark"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-4">
+
+        <!-- Visualizer Canvas & Track Viewport Window -->
+        <section class="glass-panel rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col">
+            <!-- Track Header & Realtime Quick Badges -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div class="flex items-center gap-4 text-xs">
+                    <span class="flex items-center gap-2 font-mono font-semibold text-carA">
+                        <span class="w-3 h-3 rounded-full bg-carA inline-block glow-carA"></span>
+                        Car A (Uniform): <span id="badgeA_pos">0.0m</span> | <span id="badgeA_vel">20.0 m/s</span>
+                    </span>
+                    <span class="flex items-center gap-2 font-mono font-semibold text-carB">
+                        <span class="w-3 h-3 rounded-full bg-carB inline-block glow-carB"></span>
+                        Car B (Accelerated): <span id="badgeB_pos">0.0m</span> | <span id="badgeB_vel">5.0 m/s</span>
+                    </span>
+                </div>
+
+                <!-- Simulation Quick Controls -->
+                <div class="flex items-center gap-2 text-xs">
+                    <label class="text-slate-400 flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-video text-slate-500"></i> Camera:
+                        <select id="cameraSelect" class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none">
+                            <option value="fit">Auto Fit Track</option>
+                            <option value="lead">Follow Lead Car</option>
+                            <option value="carA">Follow Car A</option>
+                            <option value="carB">Follow Car B</option>
+                        </select>
+                    </label>
+
+                    <label class="text-slate-400 flex items-center gap-1.5 ml-2 cursor-pointer">
+                        <i class="fa-solid fa-ruler-horizontal text-slate-500"></i> Track:
+                        <select id="trackLengthSelect" class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none">
+                            <option value="100">100m</option>
+                            <option value="250" selected>250m</option>
+                            <option value="500">500m</option>
+                            <option value="1000">1000m</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Canvas Viewport -->
+            <div class="relative w-full h-64 bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner group">
+                <canvas id="trackCanvas" class="w-full h-full block"></canvas>
+                
+                <!-- Overlay Legend / Vector Toggles -->
+                <div class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg p-2 flex items-center gap-4 text-xs text-slate-300">
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                        <input type="checkbox" id="toggleVectors" checked class="rounded border-slate-700 text-blue-600 focus:ring-0">
+                        <span><i class="fa-solid fa-arrow-right text-emerald-400"></i> Velocity ($v$)</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                        <input type="checkbox" id="toggleAccel" checked class="rounded border-slate-700 text-blue-600 focus:ring-0">
+                        <span><i class="fa-solid fa-angles-right text-amber-400"></i> Acceleration ($a$)</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                        <input type="checkbox" id="toggleTrails" checked class="rounded border-slate-700 text-blue-600 focus:ring-0">
+                        <span><i class="fa-solid fa-wind text-slate-400"></i> Exhaust Dust</span>
+                    </label>
+                </div>
+
+                <!-- Live Timer Badge on Canvas -->
+                <div class="absolute top-3 right-3 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 text-right font-mono">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Elapsed Time</div>
+                    <div class="text-xl font-bold text-emerald-400"><span id="timeDisplay">0.00</span> <span class="text-xs text-slate-400">s</span></div>
+                </div>
+            </div>
+
+            <!-- Track Timeline Slider & Main Playback Controls Bar -->
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                <!-- Playback Buttons -->
+                <div class="flex items-center gap-2">
+                    <button id="playBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20 transition active:scale-95">
+                        <i id="playIcon" class="fa-solid fa-play"></i>
+                        <span id="playText">Play</span>
+                    </button>
+                    <button id="stepBtn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm flex items-center gap-1.5 border border-slate-700 transition active:scale-95" title="Step Forward 0.05s">
+                        <i class="fa-solid fa-forward-step"></i> Step
+                    </button>
+                    <button id="resetBtn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm flex items-center gap-1.5 border border-slate-700 transition active:scale-95" title="Reset Simulation">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                </div>
+
+                <!-- Simulation Time Scrubber Slider -->
+                <div class="flex-1 mx-2 flex items-center gap-3">
+                    <span class="text-xs font-mono text-slate-400">0s</span>
+                    <input type="range" id="timeScrubber" min="0" max="30" step="0.05" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <span id="maxTimeDisplay" class="text-xs font-mono text-slate-400">30s</span>
+                </div>
+
+                <!-- Speed Multiplier Options -->
+                <div class="flex items-center gap-1 text-xs bg-slate-800 p-1 rounded-lg border border-slate-700">
+                    <span class="px-2 text-slate-400"><i class="fa-solid fa-gauge"></i></span>
+                    <button class="speed-btn px-2 py-1 rounded font-mono hover:bg-slate-700 text-slate-300" data-speed="0.25">0.25x</button>
+                    <button class="speed-btn px-2 py-1 rounded font-mono hover:bg-slate-700 text-slate-300" data-speed="0.5">0.5x</button>
+                    <button class="speed-btn px-2 py-1 rounded font-mono bg-blue-600 text-white font-bold" data-speed="1">1x</button>
+                    <button class="speed-btn px-2 py-1 rounded font-mono hover:bg-slate-700 text-slate-300" data-speed="2">2x</button>
+                    <button class="speed-btn px-2 py-1 rounded font-mono hover:bg-slate-700 text-slate-300" data-speed="5">5x</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Parameters & Math Telemetry Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- Left Controls Column (5 cols) -->
+            <div class="lg:col-span-5 space-y-4">
+
+                <!-- Car A Parameters Box (Cyan) -->
+                <div class="glass-panel rounded-2xl p-4 border-l-4 border-l-carA space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-sm font-bold text-carA flex items-center gap-2">
+                            <i class="fa-solid fa-car-side"></i> CAR A: Uniform Motion ($a_1 = 0$)
+                        </h2>
+                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800/60 px-2 py-0.5 rounded">Constant Speed</span>
+                    </div>
+
+                    <!-- Initial Position x1_0 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <label for="input_x10" class="text-slate-300 font-medium">Initial Position $x_{1,0}$</label>
+                            <span class="font-mono text-carA font-bold"><span id="val_x10">0</span> m</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider_x10" min="0" max="250" step="1" value="0" class="w-full h-1.5 bg-slate-800 rounded appearance-none">
+                            <input type="number" id="num_x10" min="0" max="1000" step="1" value="0" class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-xs text-carA font-mono p-1">
+                        </div>
+                    </div>
+
+                    <!-- Velocity v1 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <label for="input_v1" class="text-slate-300 font-medium">Constant Velocity $v_1$</label>
+                            <span class="font-mono text-carA font-bold"><span id="val_v1">20.0</span> m/s</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider_v1" min="0" max="60" step="0.5" value="20" class="w-full h-1.5 bg-slate-800 rounded appearance-none">
+                            <input type="number" id="num_v1" min="0" max="100" step="0.5" value="20" class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-xs text-carA font-mono p-1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Car B Parameters Box (Orange) -->
+                <div class="glass-panel rounded-2xl p-4 border-l-4 border-l-carB space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-sm font-bold text-carB flex items-center gap-2">
+                            <i class="fa-solid fa-car-burst"></i> CAR B: Uniformly Accelerated
+                        </h2>
+                        <span class="text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded">Constant Acceleration</span>
+                    </div>
+
+                    <!-- Initial Position x2_0 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <label for="input_x20" class="text-slate-300 font-medium">Initial Position $x_{2,0}$</label>
+                            <span class="font-mono text-carB font-bold"><span id="val_x20">0</span> m</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider_x20" min="0" max="250" step="1" value="0" class="w-full h-1.5 bg-slate-800 rounded appearance-none">
+                            <input type="number" id="num_x20" min="0" max="1000" step="1" value="0" class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-xs text-carB font-mono p-1">
+                        </div>
+                    </div>
+
+                    <!-- Initial Velocity v2_0 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <label for="input_v20" class="text-slate-300 font-medium">Initial Velocity $v_{2,0}$</label>
+                            <span class="font-mono text-carB font-bold"><span id="val_v20">5.0</span> m/s</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider_v20" min="-20" max="60" step="0.5" value="5" class="w-full h-1.5 bg-slate-800 rounded appearance-none">
+                            <input type="number" id="num_v20" min="-50" max="100" step="0.5" value="5" class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-xs text-carB font-mono p-1">
+                        </div>
+                    </div>
+
+                    <!-- Acceleration a2 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <label for="input_a2" class="text-slate-300 font-medium">Acceleration $a_2$</label>
+                            <span class="font-mono text-amber-400 font-bold"><span id="val_a2">3.0</span> m/s²</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider_a2" min="-10" max="15" step="0.2" value="3" class="w-full h-1.5 bg-slate-800 rounded appearance-none">
+                            <input type="number" id="num_a2" min="-20" max="30" step="0.2" value="3" class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-xs text-amber-400 font-mono p-1">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Telemetry & Equation Solvers Column (7 cols) -->
+            <div class="lg:col-span-7 space-y-4 flex flex-col justify-between">
+
+                <!-- Overtake Physics Analytical Solver Box -->
+                <div class="glass-panel rounded-2xl p-4 space-y-3 relative overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-calculator text-blue-400"></i> Overtake Point Analysis & Solver
+                        </h2>
+                        <span id="overtakeBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                            Calculating...
+                        </span>
+                    </div>
+
+                    <!-- Step-by-step Math Quadratic Equations -->
+                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 font-mono text-xs space-y-2 text-slate-300">
+                        <div class="text-slate-400 border-b border-slate-800/60 pb-1">
+                            Condition for intersection: <span class="text-white font-bold">x₁(t) = x₂(t)</span>
+                        </div>
+                        <div id="equationExpansion" class="leading-relaxed">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Calculated Overtake Points Summary Cards -->
+                    <div id="overtakeResultsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Realtime Dynamic Telemetry Cards Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Position x₁</div>
+                        <div class="text-lg font-mono font-bold text-carA mt-0.5"><span id="tele_x1">0.0</span> <span class="text-xs font-normal text-slate-500">m</span></div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-1">Car A (Uniform)</div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Position x₂</div>
+                        <div class="text-lg font-mono font-bold text-carB mt-0.5"><span id="tele_x2">0.0</span> <span class="text-xs font-normal text-slate-500">m</span></div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-1">Car B (Accelerated)</div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Speed v₂</div>
+                        <div class="text-lg font-mono font-bold text-amber-400 mt-0.5"><span id="tele_v2">5.0</span> <span class="text-xs font-normal text-slate-500">m/s</span></div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-1">v₂₀ + a₂·t</div>
+                    </div>
+
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Separation Δx</div>
+                        <div class="text-lg font-mono font-bold text-emerald-400 mt-0.5"><span id="tele_dx">0.0</span> <span class="text-xs font-normal text-slate-500">m</span></div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-1">x₂ - x₁</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Dynamic Real-Time Kinematic Charts Section -->
+        <section class="glass-panel rounded-2xl p-4 shadow-xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-blue-400"></i> Kinematic Graphs
+                    </h2>
+                    <span class="text-xs text-slate-400 hidden sm:inline">Position & Velocity vs. Time</span>
+                </div>
+
+                <!-- Graph Mode Selector Tabs -->
+                <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+                    <button id="tabBoth" class="graph-tab-btn px-3 py-1 rounded-md text-white bg-blue-600 font-medium">Dual Graphs</button>
+                    <button id="tabPos" class="graph-tab-btn px-3 py-1 rounded-md text-slate-400 hover:text-white">Position (x - t)</button>
+                    <button id="tabVel" class="graph-tab-btn px-3 py-1 rounded-md text-slate-400 hover:text-white">Velocity (v - t)</button>
+                </div>
+            </div>
+
+            <!-- Charts Grid Container -->
+            <div id="chartsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- Position vs Time Chart Container -->
+                <div id="containerPosX" class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col h-64 relative group">
+                    <div class="flex justify-between items-center mb-1 text-xs">
+                        <span class="font-bold text-slate-300">Position vs Time <span class="text-slate-500 font-mono">(x - t)</span></span>
+                        <div class="flex gap-3 font-mono text-[11px]">
+                            <span class="text-carA">● x₁(t) Straight Line</span>
+                            <span class="text-carB">● x₂(t) Parabola</span>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 w-full overflow-hidden">
+                        <canvas id="chartPosX" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+                <!-- Velocity vs Time Chart Container -->
+                <div id="containerVelV" class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col h-64 relative group">
+                    <div class="flex justify-between items-center mb-1 text-xs">
+                        <span class="font-bold text-slate-300">Velocity vs Time <span class="text-slate-500 font-mono">(v - t)</span></span>
+                        <div class="flex gap-3 font-mono text-[11px]">
+                            <span class="text-carA">■ v₁ Constant</span>
+                            <span class="text-carB">▲ v₂(t) Slope = a₂</span>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 w-full overflow-hidden">
+                        <canvas id="chartVelV" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+        Kinematics Lab Physics Application • Uniform Motion & Uniform Acceleration Visualizer
+    </footer>
+
+    <!-- JavaScript Physics Application Script -->
+    <script>
+        // Physics Simulation App State
+        const state = {
+            // Physics variables
+            carA: { x0: 0, v: 20 },
+            carB: { x0: 0, v0: 5, a: 3 },
+            trackLength: 250, // meters
+            
+            // Time & Loop control
+            t: 0,
+            maxTime: 30, // seconds max runtime
+            isPlaying: false,
+            speedMultiplier: 1.0,
+            stepDt: 0.05,
+            lastTimestamp: null,
+
+            // Display & Toggles
+            cameraMode: 'fit', // 'fit', 'lead', 'carA', 'carB'
+            showVectors: true,
+            showAccel: true,
+            showTrails: true,
+            soundEnabled: false,
+
+            // Particles
+            particlesA: [],
+            particlesB: [],
+
+            // Calculated analytics
+            overtakes: [], // [{ t, x, type }]
+
+            // Canvas & Layout UI references
+            activeTab: 'both' // 'both', 'pos', 'vel'
+        };
+
+        // Web Audio API Sound Effects Synthesizer
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+        }
+
+        function playBeep(freq = 600, duration = 0.1, type = 'sine') {
+            if (!state.soundEnabled) return;
+            try {
+                initAudio();
+                if (audioCtx && audioCtx.state === 'running') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + duration);
+                }
+            } catch(e) {}
+        }
+
+        // Analytical Physics Equations Solution Helper
+        function getCarAPosition(t) {
+            return state.carA.x0 + state.carA.v * t;
+        }
+
+        function getCarBPosition(t) {
+            return state.carB.x0 + state.carB.v0 * t + 0.5 * state.carB.a * t * t;
+        }
+
+        function getCarBVelocity(t) {
+            return state.carB.v0 + state.carB.a * t;
+        }
+
+        // Computes exact real roots t >= 0 for x1(t) = x2(t)
+        function solveOvertakes() {
+            const x1_0 = state.carA.x0;
+            const v1 = state.carA.v;
+            const x2_0 = state.carB.x0;
+            const v2_0 = state.carB.v0;
+            const a2 = state.carB.a;
+
+            // Equation: (0.5 * a2) * t^2 + (v2_0 - v1) * t + (x2_0 - x1_0) = 0
+            const A = 0.5 * a2;
+            const B = v2_0 - v1;
+            const C = x2_0 - x1_0;
+
+            const results = [];
+
+            if (Math.abs(A) < 1e-7) {
+                // Linear case (a2 = 0, both uniform)
+                if (Math.abs(B) < 1e-7) {
+                    // Lines are parallel or identical
+                    if (Math.abs(C) < 1e-7) {
+                        results.push({ infinite: true });
+                    }
+                } else {
+                    const t = -C / B;
+                    if (t >= 0) {
+                        results.push({ t: t, x: getCarAPosition(t) });
+                    }
+                }
+            } else {
+                // Quadratic Case
+                const disc = B * B - 4 * A * C;
+                if (disc >= 0) {
+                    const sqrtDisc = Math.sqrt(disc);
+                    const t1 = (-B - sqrtDisc) / (2 * A);
+                    const t2 = (-B + sqrtDisc) / (2 * A);
+
+                    const validRoots = [t1, t2].filter(t => t >= -1e-5).sort((a,b) => a - b);
+                    
+                    validRoots.forEach(t => {
+                        const actualT = Math.max(0, t);
+                        // Prevent duplicate roots if disc ~ 0
+                        if (!results.some(r => Math.abs(r.t - actualT) < 0.05)) {
+                            results.push({ t: actualT, x: getCarAPosition(actualT) });
+                        }
+                    });
+                }
+            }
+
+            state.overtakes = results;
+            updateMathUI(A, B, C);
+        }
+
+        // Render Step-by-Step Math Equations into UI
+        function updateMathUI(A, B, C) {
+            const eqExpansion = document.getElementById('equationExpansion');
+            const resultsContainer = document.getElementById('overtakeResultsContainer');
+            const badge = document.getElementById('overtakeBadge');
+
+            const aStr = state.carB.a !== 0 ? `${(0.5 * state.carB.a).toFixed(2)}t²` : '';
+            const bVal = (state.carB.v0 - state.carA.v);
+            const bStr = bVal >= 0 ? `+ ${bVal.toFixed(1)}t` : `- ${Math.abs(bVal).toFixed(1)}t`;
+            const cVal = (state.carB.x0 - state.carA.x0);
+            const cStr = cVal >= 0 ? `+ ${cVal.toFixed(1)}` : `- ${Math.abs(cVal).toFixed(1)}`;
+
+            let quadFormulaHTML = `
+                <div class="text-blue-300">
+                    (${state.carA.x0} + ${state.carA.v}t) = (${state.carB.x0} + ${state.carB.v0}t + 0.5·${state.carB.a}t²)
+                </div>
+                <div class="text-slate-400 font-semibold mt-0.5">
+                    ➔ <span class="text-amber-300">${aStr || '0'}</span> <span class="text-cyan-300">${bStr}</span> <span class="text-emerald-300">${cStr}</span> = 0
+                </div>
+            `;
+            eqExpansion.innerHTML = quadFormulaHTML;
+
+            // Render Result Cards
+            resultsContainer.innerHTML = '';
+
+            if (state.overtakes.length === 0) {
+                badge.innerText = 'No Future Intersection';
+                badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30';
+                resultsContainer.innerHTML = `
+                    <div class="col-span-2 text-center py-2 bg-slate-900/50 rounded-lg text-slate-400 text-xs italic">
+                        Cars will not cross paths in positive time ($t \\ge 0$).
+                    </div>
+                `;
+            } else if (state.overtakes[0].infinite) {
+                badge.innerText = 'Continuous Overlap';
+                badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+                resultsContainer.innerHTML = `
+                    <div class="col-span-2 text-center py-2 bg-slate-900/50 rounded-lg text-emerald-400 text-xs font-semibold">
+                        Identical initial states and zero acceleration ($x_1 = x_2$ everywhere).
+                    </div>
+                `;
+            } else {
+                badge.innerText = `${state.overtakes.length} Overtake Event(s) Found`;
+                badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+
+                state.overtakes.forEach((ov, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between';
+                    card.innerHTML = `
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Overtake #${idx + 1}</div>
+                            <div class="text-sm font-mono font-bold text-emerald-400">t = ${ov.t.toFixed(2)}s</div>
+                        </div>
+                        <div class="text-right font-mono">
+                            <div class="text-[10px] text-slate-400">Distance</div>
+                            <div class="text-sm font-bold text-white">${ov.x.toFixed(1)}m</div>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+            }
+        }
+
+        // Canvas & Graphics Setup
+        const trackCanvas = document.getElementById('trackCanvas');
+        const ctx = trackCanvas.getContext('2d');
+
+        const chartPosCanvas = document.getElementById('chartPosX');
+        const ctxPos = chartPosCanvas.getContext('2d');
+
+        const chartVelCanvas = document.getElementById('chartVelV');
+        const ctxVel = chartVelCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            [trackCanvas, chartPosCanvas, chartVelCanvas].forEach(canvas => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * window.devicePixelRatio;
+                canvas.height = rect.height * window.devicePixelRatio;
+            });
+            renderAll();
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+
+        // Vector Arrow Drawing Helper
+        function drawArrow(context, fromX, fromY, toX, toY, color, label = '', thickness = 2) {
+            const headlen = 8 * window.devicePixelRatio;
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const angle = Math.atan2(dy, dx);
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 4) return; // Don't draw tiny arrows
+
+            context.save();
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.lineWidth = thickness * window.devicePixelRatio;
+
+            // Arrow line
+            context.beginPath();
+            context.moveTo(fromX, fromY);
+            context.lineTo(toX, toY);
+            context.stroke();
+
+            // Arrow tip
+            context.beginPath();
+            context.moveTo(toX, toY);
+            context.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            context.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            context.closePath();
+            context.fill();
+
+            // Text Label
+            if (label) {
+                context.font = `${10 * window.devicePixelRatio}px "Fira Code", monospace`;
+                context.fillText(label, toX + 5, toY + 3);
+            }
+            context.restore();
+        }
+
+        // Particle System for Vehicle Trails
+        function updateParticles(dt) {
+            const x1 = getCarAPosition(state.t);
+            const x2 = getCarBPosition(state.t);
+            const v2 = getCarBVelocity(state.t);
+
+            if (state.isPlaying && state.showTrails) {
+                // Emission for Car A
+                if (Math.abs(state.carA.v) > 1 && Math.random() < 0.6) {
+                    state.particlesA.push({
+                        x: x1 - 1.5,
+                        y: 0,
+                        vx: -state.carA.v * 0.2 + (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 1.5,
+                        life: 1.0,
+                        color: 'rgba(0, 243, 255, '
+                    });
+                }
+                // Emission for Car B
+                if (Math.abs(v2) > 1 && Math.random() < 0.8) {
+                    state.particlesB.push({
+                        x: x2 - 1.5,
+                        y: 0,
+                        vx: -v2 * 0.2 + (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 1.5,
+                        life: 1.0,
+                        color: 'rgba(255, 107, 0, '
+                    });
+                }
+            }
+
+            // Update Particle physics
+            [state.particlesA, state.particlesB].forEach(pList => {
+                for (let i = pList.length - 1; i >= 0; i--) {
+                    const p = pList[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.life -= dt * 2.0;
+                    if (p.life <= 0) pList.splice(i, 1);
+                }
+            });
+        }
+
+        // Render Track Canvas
+        function renderTrack() {
+            const dpr = window.devicePixelRatio;
+            const w = trackCanvas.width;
+            const h = trackCanvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Compute Viewport World Range [minX, maxX] based on camera settings
+            const x1 = getCarAPosition(state.t);
+            const x2 = getCarBPosition(state.t);
+
+            let minX = 0;
+            let maxX = state.trackLength;
+
+            if (state.cameraMode === 'lead') {
+                const leadX = Math.max(x1, x2);
+                minX = Math.max(0, leadX - state.trackLength * 0.35);
+                maxX = minX + state.trackLength * 0.7;
+            } else if (state.cameraMode === 'carA') {
+                minX = Math.max(0, x1 - state.trackLength * 0.35);
+                maxX = minX + state.trackLength * 0.7;
+            } else if (state.cameraMode === 'carB') {
+                minX = Math.max(0, x2 - state.trackLength * 0.35);
+                maxX = minX + state.trackLength * 0.7;
+            }
+
+            const paddingMeters = (maxX - minX) * 0.08;
+            const worldMinX = minX - paddingMeters;
+            const worldMaxX = maxX + paddingMeters;
+            const worldRange = worldMaxX - worldMinX;
+
+            function worldToScreenX(worldX) {
+                return ((worldX - worldMinX) / worldRange) * w;
+            }
+
+            // Draw Road Asphalt
+            const roadY = h * 0.15;
+            const roadH = h * 0.70;
+            const laneH = roadH / 2;
+            const lane1CenterY = roadY + laneH * 0.5; // Car A Lane
+            const lane2CenterY = roadY + laneH * 1.5; // Car B Lane
+
+            // Road surface
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, roadY, w, roadH);
+
+            // Road borders (Curbs)
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, roadY - 4 * dpr, w, 4 * dpr);
+            ctx.fillRect(0, roadY + roadH, w, 4 * dpr);
+
+            // Lane Divider Dashed Line
+            ctx.save();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2 * dpr;
+            ctx.setLineDash([12 * dpr, 12 * dpr]);
+            ctx.beginPath();
+            ctx.moveTo(0, roadY + laneH);
+            ctx.lineTo(w, roadY + laneH);
+            ctx.stroke();
+            ctx.restore();
+
+            // Distance Markings & Grid
+            const stepMeters = state.trackLength >= 500 ? 50 : (state.trackLength >= 250 ? 25 : 10);
+            ctx.fillStyle = '#64748b';
+            ctx.strokeStyle = '#1e293b';
+            ctx.font = `${10 * dpr}px "Fira Code", monospace`;
+            ctx.textAlign = 'center';
+
+            for (let m = 0; m <= state.trackLength; m += stepMeters) {
+                const sx = worldToScreenX(m);
+                if (sx >= -20 && sx <= w + 20) {
+                    // Vertical ruler line
+                    ctx.beginPath();
+                    ctx.moveTo(sx, roadY);
+                    ctx.lineTo(sx, roadY + roadH);
+                    ctx.stroke();
+
+                    // Ruler tick numbers
+                    ctx.fillText(`${m}m`, sx, roadY - 8 * dpr);
+                }
+            }
+
+            // Start Line (0m) & Finish Line (trackLength)
+            const startSx = worldToScreenX(0);
+            if (startSx >= 0 && startSx <= w) {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 3 * dpr;
+                ctx.beginPath();
+                ctx.moveTo(startSx, roadY);
+                ctx.lineTo(startSx, roadY + roadH);
+                ctx.stroke();
+            }
+
+            const finishSx = worldToScreenX(state.trackLength);
+            if (finishSx >= 0 && finishSx <= w) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 4 * dpr;
+                ctx.beginPath();
+                ctx.moveTo(finishSx, roadY);
+                ctx.lineTo(finishSx, roadY + roadH);
+                ctx.stroke();
+            }
+
+            // Draw Calculated Overtake Flags on Track
+            state.overtakes.forEach((ov, i) => {
+                if (ov.t && ov.x >= worldMinX && ov.x <= worldMaxX) {
+                    const ovSx = worldToScreenX(ov.x);
+                    
+                    // Highlight line
+                    ctx.save();
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2 * dpr;
+                    ctx.setLineDash([4 * dpr, 4 * dpr]);
+                    ctx.beginPath();
+                    ctx.moveTo(ovSx, roadY - 15 * dpr);
+                    ctx.lineTo(ovSx, roadY + roadH + 15 * dpr);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // Marker Tag
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.font = `bold ${10 * dpr}px Inter, sans-serif`;
+                    ctx.fillText(`★ OVERTAKE ${ov.t.toFixed(1)}s`, ovSx, roadY + roadH + 22 * dpr);
+                }
+            });
+
+            // Draw Exhaust Dust Particles
+            ctx.save();
+            [state.particlesA, state.particlesB].forEach((pList, carIdx) => {
+                const baseY = carIdx === 0 ? lane1CenterY : lane2CenterY;
+                pList.forEach(p => {
+                    const px = worldToScreenX(p.x);
+                    const py = baseY + p.y * dpr;
+                    ctx.fillStyle = p.color + p.life + ')';
+                    ctx.beginPath();
+                    ctx.arc(px, py, (3 + (1 - p.life) * 4) * dpr, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+            ctx.restore();
+
+            // Function to Draw Stylized Vehicle
+            function drawCar(xPos, centerY, colorHex, glowColor, labelText, velocity, accel = 0) {
+                const carSx = worldToScreenX(xPos);
+                const carW = 32 * dpr;
+                const carH = 16 * dpr;
+
+                ctx.save();
+
+                // Draw Car Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.ellipse(carSx, centerY + carH * 0.45, carW * 0.55, carH * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw Glowing Body
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 12 * dpr;
+                ctx.fillStyle = colorHex;
+
+                // Car main body rect with rounded corners
+                const r = 4 * dpr;
+                const left = carSx - carW / 2;
+                const top = centerY - carH / 2;
+
+                ctx.beginPath();
+                ctx.roundRect(left, top, carW, carH, r);
+                ctx.fill();
+                ctx.shadowBlur = 0; // reset shadow
+
+                // Roof/Windshield
+                ctx.fillStyle = '#090d16';
+                ctx.fillRect(carSx - carW * 0.15, top + carH * 0.2, carW * 0.35, carH * 0.6);
+
+                // Headlights
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(carSx + carW * 0.4, top + carH * 0.15, 3 * dpr, 3 * dpr);
+                ctx.fillRect(carSx + carW * 0.4, top + carH * 0.65, 3 * dpr, 3 * dpr);
+
+                // Animated Rotating Wheels
+                const wheelR = 3.5 * dpr;
+                const wheelRotation = (xPos / 0.5) % (Math.PI * 2);
+
+                [[-carW * 0.3, -carH * 0.5], [carW * 0.25, -carH * 0.5], [-carW * 0.3, carH * 0.5], [carW * 0.25, carH * 0.5]].forEach(([wx, wy]) => {
+                    ctx.save();
+                    ctx.translate(carSx + wx, centerY + wy);
+                    ctx.rotate(wheelRotation);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, wheelR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 1 * dpr;
+                    ctx.beginPath();
+                    ctx.moveTo(-wheelR, 0); ctx.lineTo(wheelR, 0);
+                    ctx.stroke();
+                    ctx.restore();
+                });
+
+                // Velocity Vector Arrow
+                if (state.showVectors && Math.abs(velocity) > 0.1) {
+                    const arrowScale = 2.0; // pixels per m/s
+                    const arrowLen = velocity * arrowScale * dpr;
+                    drawArrow(ctx, carSx, centerY - carH * 0.8, carSx + arrowLen, centerY - carH * 0.8, '#10b981', `v=${velocity.toFixed(1)}m/s`, 2);
+                }
+
+                // Acceleration Vector Arrow
+                if (state.showAccel && Math.abs(accel) > 0.05) {
+                    const arrowScale = 4.0;
+                    const arrowLen = accel * arrowScale * dpr;
+                    drawArrow(ctx, carSx, centerY + carH * 0.8, carSx + arrowLen, centerY + carH * 0.8, '#f59e0b', `a=${accel.toFixed(1)}m/s²`, 2);
+                }
+
+                // Car Tag Badge
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${10 * dpr}px "Fira Code", monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillText(`${xPos.toFixed(1)}m`, carSx, top - 6 * dpr);
+
+                ctx.restore();
+            }
+
+            // Render Both Cars
+            drawCar(x1, lane1CenterY, '#00f3ff', 'rgba(0,243,255,0.8)', 'Car A', state.carA.v, 0);
+            drawCar(x2, lane2CenterY, '#ff6b00', 'rgba(255,107,0,0.8)', 'Car B', getCarBVelocity(state.t), state.carB.a);
+        }
+
+        // Render Position vs Time (x-t) and Velocity vs Time (v-t) Charts
+        function renderCharts() {
+            const dpr = window.devicePixelRatio;
+
+            // Render x-t Chart
+            if (chartPosCanvas.offsetParent !== null) {
+                const w = chartPosCanvas.width;
+                const h = chartPosCanvas.height;
+                ctxPos.clearRect(0, 0, w, h);
+
+                const margin = { top: 20 * dpr, right: 20 * dpr, bottom: 30 * dpr, left: 40 * dpr };
+                const plotW = w - margin.left - margin.right;
+                const plotH = h - margin.top - margin.bottom;
+
+                const maxT = state.maxTime;
+                const maxX = state.trackLength;
+
+                function tToX(t) { return margin.left + (t / maxT) * plotW; }
+                function xToY(x) { return margin.top + plotH - (x / maxX) * plotH; }
+
+                // Grid lines & Axis
+                ctxPos.strokeStyle = '#1e293b';
+                ctxPos.lineWidth = 1 * dpr;
+                ctxPos.fillStyle = '#64748b';
+                ctxPos.font = `${9 * dpr}px "Fira Code", monospace`;
+
+                // Horizontal grid (Position)
+                for (let x = 0; x <= maxX; x += maxX / 5) {
+                    const y = xToY(x);
+                    ctxPos.beginPath();
+                    ctxPos.moveTo(margin.left, y);
+                    ctxPos.lineTo(w - margin.right, y);
+                    ctxPos.stroke();
+                    ctxPos.fillText(`${Math.round(x)}m`, margin.left - 5 * dpr, y + 3 * dpr);
+                }
+
+                // Vertical grid (Time)
+                for (let t = 0; t <= maxT; t += 5) {
+                    const x = tToX(t);
+                    ctxPos.beginPath();
+                    ctxPos.moveTo(x, margin.top);
+                    ctxPos.lineTo(x, margin.top + plotH);
+                    ctxPos.stroke();
+                    ctxPos.fillText(`${t}s`, x, h - 8 * dpr);
+                }
+
+                // Theoretical Curve Car A (Straight line)
+                ctxPos.strokeStyle = '#00f3ff';
+                ctxPos.lineWidth = 2 * dpr;
+                ctxPos.beginPath();
+                ctxPos.moveTo(tToX(0), xToY(getCarAPosition(0)));
+                ctxPos.lineTo(tToX(maxT), xToY(getCarAPosition(maxT)));
+                ctxPos.stroke();
+
+                // Theoretical Curve Car B (Parabola)
+                ctxPos.strokeStyle = '#ff6b00';
+                ctxPos.lineWidth = 2 * dpr;
+                ctxPos.beginPath();
+                for (let t = 0; t <= maxT; t += 0.2) {
+                    const px = tToX(t);
+                    const py = xToY(getCarBPosition(t));
+                    if (t === 0) ctxPos.moveTo(px, py);
+                    else ctxPos.lineTo(px, py);
+                }
+                ctxPos.stroke();
+
+                // Overtake Point Markers on x-t Graph
+                state.overtakes.forEach(ov => {
+                    if (ov.t >= 0 && ov.t <= maxT) {
+                        const ox = tToX(ov.t);
+                        const oy = xToY(ov.x);
+
+                        ctxPos.strokeStyle = '#f59e0b';
+                        ctxPos.fillStyle = '#f59e0b';
+                        ctxPos.beginPath();
+                        ctxPos.arc(ox, oy, 4 * dpr, 0, Math.PI * 2);
+                        ctxPos.fill();
+                        ctxPos.stroke();
+                    }
+                });
+
+                // Live Active Time Tracer Dots
+                const curT = state.t;
+                if (curT <= maxT) {
+                    const curX1 = getCarAPosition(curT);
+                    const curX2 = getCarBPosition(curT);
+
+                    // Car A Dot
+                    ctxPos.fillStyle = '#00f3ff';
+                    ctxPos.beginPath();
+                    ctxPos.arc(tToX(curT), xToY(curX1), 5 * dpr, 0, Math.PI * 2);
+                    ctxPos.fill();
+
+                    // Car B Dot
+                    ctxPos.fillStyle = '#ff6b00';
+                    ctxPos.beginPath();
+                    ctxPos.arc(tToX(curT), xToY(curX2), 5 * dpr, 0, Math.PI * 2);
+                    ctxPos.fill();
+                }
+            }
+
+            // Render v-t Chart
+            if (chartVelCanvas.offsetParent !== null) {
+                const w = chartVelCanvas.width;
+                const h = chartVelCanvas.height;
+                ctxVel.clearRect(0, 0, w, h);
+
+                const margin = { top: 20 * dpr, right: 20 * dpr, bottom: 30 * dpr, left: 40 * dpr };
+                const plotW = w - margin.left - margin.right;
+                const plotH = h - margin.top - margin.bottom;
+
+                const maxT = state.maxTime;
+                
+                // Calculate velocity range
+                const vA = state.carA.v;
+                const vB0 = state.carB.v0;
+                const vBEnd = getCarBVelocity(maxT);
+                
+                const minV = Math.min(0, vA, vB0, vBEnd) - 5;
+                const maxV = Math.max(30, vA, vB0, vBEnd) + 10;
+                const vRange = maxV - minV;
+
+                function tToX(t) { return margin.left + (t / maxT) * plotW; }
+                function vToY(v) { return margin.top + plotH - ((v - minV) / vRange) * plotH; }
+
+                // Grid lines & Axis
+                ctxVel.strokeStyle = '#1e293b';
+                ctxVel.lineWidth = 1 * dpr;
+                ctxVel.fillStyle = '#64748b';
+                ctxVel.font = `${9 * dpr}px "Fira Code", monospace`;
+
+                // Zero line
+                if (minV < 0 && maxV > 0) {
+                    ctxVel.strokeStyle = '#334155';
+                    ctxVel.beginPath();
+                    ctxVel.moveTo(margin.left, vToY(0));
+                    ctxVel.lineTo(w - margin.right, vToY(0));
+                    ctxVel.stroke();
+                }
+
+                // Vertical grid (Time)
+                for (let t = 0; t <= maxT; t += 5) {
+                    const x = tToX(t);
+                    ctxVel.beginPath();
+                    ctxVel.moveTo(x, margin.top);
+                    ctxVel.lineTo(x, margin.top + plotH);
+                    ctxVel.stroke();
+                    ctxVel.fillText(`${t}s`, x, h - 8 * dpr);
+                }
+
+                // Horizontal grid (Velocity)
+                for (let v = Math.ceil(minV / 10) * 10; v <= maxV; v += 10) {
+                    const y = vToY(v);
+                    ctxVel.fillText(`${v}`, margin.left - 5 * dpr, y + 3 * dpr);
+                }
+
+                // Shaded area under Car B v-t graph up to current time t
+                const curT = Math.min(state.t, maxT);
+                if (curT > 0) {
+                    ctxVel.fillStyle = 'rgba(255, 107, 0, 0.15)';
+                    ctxVel.beginPath();
+                    ctxVel.moveTo(tToX(0), vToY(0));
+                    for (let t = 0; t <= curT; t += 0.2) {
+                        ctxVel.lineTo(tToX(t), vToY(getCarBVelocity(t)));
+                    }
+                    ctxVel.lineTo(tToX(curT), vToY(0));
+                    ctxVel.closePath();
+                    ctxVel.fill();
+                }
+
+                // Car A Velocity (Horizontal line)
+                ctxVel.strokeStyle = '#00f3ff';
+                ctxVel.lineWidth = 2 * dpr;
+                ctxVel.beginPath();
+                ctxVel.moveTo(tToX(0), vToY(state.carA.v));
+                ctxVel.lineTo(tToX(maxT), vToY(state.carA.v));
+                ctxVel.stroke();
+
+                // Car B Velocity (Sloped line)
+                ctxVel.strokeStyle = '#ff6b00';
+                ctxVel.lineWidth = 2 * dpr;
+                ctxVel.beginPath();
+                ctxVel.moveTo(tToX(0), vToY(state.carB.v0));
+                ctxVel.lineTo(tToX(maxT), vToY(getCarBVelocity(maxT)));
+                ctxVel.stroke();
+
+                // Live Active Tracer Dots
+                if (curT <= maxT) {
+                    ctxVel.fillStyle = '#00f3ff';
+                    ctxVel.beginPath();
+                    ctxVel.arc(tToX(curT), vToY(state.carA.v), 5 * dpr, 0, Math.PI * 2);
+                    ctxVel.fill();
+
+                    ctxVel.fillStyle = '#ff6b00';
+                    ctxVel.beginPath();
+                    ctxVel.arc(tToX(curT), vToY(getCarBVelocity(curT)), 5 * dpr, 0, Math.PI * 2);
+                    ctxVel.fill();
+                }
+            }
+        }
+
+        function renderAll() {
+            renderTrack();
+            renderCharts();
+            updateTelemetryUI();
+        }
+
+        // Update Real-time Readouts
+        function updateTelemetryUI() {
+            const x1 = getCarAPosition(state.t);
+            const x2 = getCarBPosition(state.t);
+            const v2 = getCarBVelocity(state.t);
+            const dx = x2 - x1;
+
+            document.getElementById('timeDisplay').innerText = state.t.toFixed(2);
+            document.getElementById('timeScrubber').value = state.t;
+
+            document.getElementById('badgeA_pos').innerText = `${x1.toFixed(1)}m`;
+            document.getElementById('badgeA_vel').innerText = `${state.carA.v.toFixed(1)} m/s`;
+
+            document.getElementById('badgeB_pos').innerText = `${x2.toFixed(1)}m`;
+            document.getElementById('badgeB_vel').innerText = `${v2.toFixed(1)} m/s`;
+
+            document.getElementById('tele_x1').innerText = x1.toFixed(1);
+            document.getElementById('tele_x2').innerText = x2.toFixed(1);
+            document.getElementById('tele_v2').innerText = v2.toFixed(1);
+            document.getElementById('tele_dx').innerText = dx.toFixed(1);
+        }
+
+        // Animation Physics Loop
+        function animationLoop(timestamp) {
+            if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+            const deltaRealSeconds = (timestamp - state.lastTimestamp) / 1000;
+            state.lastTimestamp = timestamp;
+
+            if (state.isPlaying) {
+                const dt = Math.min(deltaRealSeconds, 0.1) * state.speedMultiplier;
+                
+                // Check if crossed overtake event in this tick for sound
+                const oldT = state.t;
+                state.t += dt;
+
+                state.overtakes.forEach(ov => {
+                    if (oldT < ov.t && state.t >= ov.t) {
+                        playBeep(880, 0.25, 'triangle');
+                    }
+                });
+
+                if (state.t >= state.maxTime) {
+                    state.t = state.maxTime;
+                    state.isPlaying = false;
+                    updatePlayButtonUI();
+                }
+
+                updateParticles(dt);
+                renderAll();
+            }
+
+            requestAnimationFrame(animationLoop);
+        }
+
+        // UI Controls Interaction Binding
+        function bindControls() {
+            // Play / Pause
+            const playBtn = document.getElementById('playBtn');
+            playBtn.addEventListener('click', () => {
+                state.isPlaying = !state.isPlaying;
+                if (state.isPlaying && state.t >= state.maxTime) {
+                    state.t = 0; // auto restart if at end
+                }
+                updatePlayButtonUI();
+                playBeep(440, 0.08);
+            });
+
+            // Step Forward
+            document.getElementById('stepBtn').addEventListener('click', () => {
+                state.isPlaying = false;
+                updatePlayButtonUI();
+                state.t = Math.min(state.maxTime, state.t + state.stepDt);
+                renderAll();
+                playBeep(520, 0.05);
+            });
+
+            // Reset
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                state.isPlaying = false;
+                state.t = 0;
+                state.particlesA = [];
+                state.particlesB = [];
+                updatePlayButtonUI();
+                renderAll();
+                playBeep(330, 0.08);
+            });
+
+            // Time Scrubber
+            const scrubber = document.getElementById('timeScrubber');
+            scrubber.addEventListener('input', (e) => {
+                state.t = parseFloat(e.target.value);
+                renderAll();
+            });
+
+            // Speed Multipliers
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.speed-btn').forEach(b => {
+                        b.className = 'speed-btn px-2 py-1 rounded font-mono hover:bg-slate-700 text-slate-300';
+                    });
+                    btn.className = 'speed-btn px-2 py-1 rounded font-mono bg-blue-600 text-white font-bold';
+                    state.speedMultiplier = parseFloat(btn.dataset.speed);
+                });
+            });
+
+            // Camera Select
+            document.getElementById('cameraSelect').addEventListener('change', (e) => {
+                state.cameraMode = e.target.value;
+                renderTrack();
+            });
+
+            // Track Length Select
+            document.getElementById('trackLengthSelect').addEventListener('change', (e) => {
+                state.trackLength = parseFloat(e.target.value);
+                solveOvertakes();
+                renderAll();
+            });
+
+            // Sound Toggle
+            document.getElementById('soundToggleBtn').addEventListener('click', () => {
+                state.soundEnabled = !state.soundEnabled;
+                const icon = document.getElementById('soundIcon');
+                icon.className = state.soundEnabled ? 'fa-solid fa-volume-high text-emerald-400' : 'fa-solid fa-volume-xmark text-slate-400';
+                if (state.soundEnabled) playBeep(660, 0.1);
+            });
+
+            // Vector Checkboxes
+            document.getElementById('toggleVectors').addEventListener('change', (e) => {
+                state.showVectors = e.target.checked; renderTrack();
+            });
+            document.getElementById('toggleAccel').addEventListener('change', (e) => {
+                state.showAccel = e.target.checked; renderTrack();
+            });
+            document.getElementById('toggleTrails').addEventListener('change', (e) => {
+                state.showTrails = e.target.checked; renderTrack();
+            });
+
+            // Synchronize Slider + Number Inputs for Parameters
+            function setupInputSync(sliderId, numId, valSpanId, stateObj, propKey, isFloat = false) {
+                const slider = document.getElementById(sliderId);
+                const num = document.getElementById(numId);
+                const valSpan = document.getElementById(valSpanId);
+
+                function update(val) {
+                    const parsed = isFloat ? parseFloat(val) : parseInt(val, 10);
+                    stateObj[propKey] = parsed;
+                    slider.value = parsed;
+                    num.value = parsed;
+                    valSpan.innerText = isFloat ? parsed.toFixed(1) : parsed;
+                    solveOvertakes();
+                    renderAll();
+                }
+
+                slider.addEventListener('input', (e) => update(e.target.value));
+                num.addEventListener('input', (e) => update(e.target.value));
+            }
+
+            setupInputSync('slider_x10', 'num_x10', 'val_x10', state.carA, 'x0');
+            setupInputSync('slider_v1', 'num_v1', 'val_v1', state.carA, 'v', true);
+
+            setupInputSync('slider_x20', 'num_x20', 'val_x20', state.carB, 'x0');
+            setupInputSync('slider_v20', 'num_v20', 'val_v20', state.carB, 'v0', true);
+            setupInputSync('slider_a2', 'num_a2', 'val_a2', state.carB, 'a', true);
+
+            // Presets Dropdown
+            document.getElementById('presetSelect').addEventListener('change', (e) => {
+                loadPreset(e.target.value);
+            });
+
+            // Graph View Tabs
+            const tabBoth = document.getElementById('tabBoth');
+            const tabPos = document.getElementById('tabPos');
+            const tabVel = document.getElementById('tabVel');
+
+            const containerPos = document.getElementById('containerPosX');
+            const containerVel = document.getElementById('containerVelV');
+            const chartsGrid = document.getElementById('chartsGrid');
+
+            function setGraphTab(mode) {
+                state.activeTab = mode;
+                [tabBoth, tabPos, tabVel].forEach(t => {
+                    t.className = 'graph-tab-btn px-3 py-1 rounded-md text-slate-400 hover:text-white';
+                });
+
+                if (mode === 'both') {
+                    tabBoth.className = 'graph-tab-btn px-3 py-1 rounded-md text-white bg-blue-600 font-medium';
+                    chartsGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+                    containerPos.classList.remove('hidden');
+                    containerVel.classList.remove('hidden');
+                } else if (mode === 'pos') {
+                    tabPos.className = 'graph-tab-btn px-3 py-1 rounded-md text-white bg-blue-600 font-medium';
+                    chartsGrid.className = 'grid grid-cols-1 gap-4';
+                    containerPos.classList.remove('hidden');
+                    containerVel.classList.add('hidden');
+                } else if (mode === 'vel') {
+                    tabVel.className = 'graph-tab-btn px-3 py-1 rounded-md text-white bg-blue-600 font-medium';
+                    chartsGrid.className = 'grid grid-cols-1 gap-4';
+                    containerPos.classList.add('hidden');
+                    containerVel.classList.remove('hidden');
+                }
+                setTimeout(resizeCanvases, 50);
+            }
+
+            tabBoth.addEventListener('click', () => setGraphTab('both'));
+            tabPos.addEventListener('click', () => setGraphTab('pos'));
+            tabVel.addEventListener('click', () => setGraphTab('vel'));
+        }
+
+        function updatePlayButtonUI() {
+            const icon = document.getElementById('playIcon');
+            const text = document.getElementById('playText');
+            if (state.isPlaying) {
+                icon.className = 'fa-solid fa-pause';
+                text.innerText = 'Pause';
+            } else {
+                icon.className = 'fa-solid fa-play';
+                text.innerText = 'Play';
+            }
+        }
+
+        // Preset Configurations
+        function loadPreset(presetKey) {
+            state.isPlaying = false;
+            state.t = 0;
+            updatePlayButtonUI();
+
+            if (presetKey === 'classic') {
+                // Car A head start, Car B accelerates past
+                setInputs(50, 20, 0, 5, 3.0, 250);
+            } else if (presetKey === 'dragRace') {
+                // Both from same start, Car B starts 0 m/s with heavy acceleration
+                setInputs(0, 25, 0, 0, 6.0, 250);
+            } else if (presetKey === 'twoOvertakes') {
+                // Car B starts ahead at high initial velocity with negative acceleration
+                setInputs(30, 15, 0, 25, -4.0, 250);
+            } else if (presetKey === 'braking') {
+                // Car B decelerates to stop
+                setInputs(0, 20, 40, 30, -5.0, 250);
+            } else if (presetKey === 'equalStart') {
+                // Both start together at same speed, Car B accelerates
+                setInputs(0, 15, 0, 15, 2.5, 250);
+            }
+        }
+
+        function setInputs(x10, v1, x20, v20, a2, trackLen) {
+            document.getElementById('slider_x10').value = x10;
+            document.getElementById('num_x10').value = x10;
+            document.getElementById('val_x10').innerText = x10;
+            state.carA.x0 = x10;
+
+            document.getElementById('slider_v1').value = v1;
+            document.getElementById('num_v1').value = v1;
+            document.getElementById('val_v1').innerText = v1.toFixed(1);
+            state.carA.v = v1;
+
+            document.getElementById('slider_x20').value = x20;
+            document.getElementById('num_x20').value = x20;
+            document.getElementById('val_x20').innerText = x20;
+            state.carB.x0 = x20;
+
+            document.getElementById('slider_v20').value = v20;
+            document.getElementById('num_v20').value = v20;
+            document.getElementById('val_v20').innerText = v20.toFixed(1);
+            state.carB.v0 = v20;
+
+            document.getElementById('slider_a2').value = a2;
+            document.getElementById('num_a2').value = a2;
+            document.getElementById('val_a2').innerText = a2.toFixed(1);
+            state.carB.a = a2;
+
+            if (trackLen) {
+                document.getElementById('trackLengthSelect').value = trackLen;
+                state.trackLength = trackLen;
+            }
+
+            solveOvertakes();
+            renderAll();
+        }
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            bindControls();
+            loadPreset('classic');
+            resizeCanvases();
+            requestAnimationFrame(animationLoop);
+        });
+    </script>
+</body>
+</html>
