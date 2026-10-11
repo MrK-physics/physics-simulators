@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 select-none">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drag & Drop Subatomic Physics Lab: Quarks to Atoms</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            quarkUp: '#ff2a6d',
+            quarkDown: '#05d9e8',
+            antiUp: '#d63031',
+            antiDown: '#0984e3',
+            proton: '#ff4757',
+            neutron: '#2ed573',
+            electron: '#eccc68',
+            gluon: '#e056fd',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom canvas styling and glassmorphism UI */
+    canvas {
+      touch-action: none;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-button {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-button:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .glass-button:active {
+      transform: translateY(1px);
+    }
+    /* Pulsing drop ring animation */
+    @keyframes dropPulse {
+      0% { opacity: 0.4; transform: scale(0.98); }
+      50% { opacity: 0.8; transform: scale(1.02); }
+      100% { opacity: 0.4; transform: scale(0.98); }
+    }
+    .animate-drop-pulse {
+      animation: dropPulse 2.5s infinite ease-in-out;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden font-sans bg-slate-950 text-slate-100">
+
+  <!-- Navigation Header Bar -->
+  <header class="h-16 glass-panel z-30 px-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 via-purple-500 to-cyan-400 p-0.5 shadow-lg shadow-cyan-500/20">
+        <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+          <i data-lucide="atom" class="w-6 h-6 text-cyan-400 animate-spin" style="animation-duration: 12s;"></i>
+        </div>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+          Subatomic Physics Lab
+        </h1>
+        <p class="text-xs text-slate-400 font-medium hidden sm:block">Interactive Drag & Drop: Quarks to Atoms</p>
+      </div>
+    </div>
+
+    <!-- Mode & Lab Switching Controls -->
+    <div class="flex items-center space-x-2 md:space-x-4">
+      <!-- Lab Mode Switcher Tabs -->
+      <div class="bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex space-x-1">
+        <button id="tabLab1" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-purple-600 text-white shadow-md">
+          <i data-lucide="boxes" class="w-4 h-4"></i>
+          <span>Lab 1: Quark Forge</span>
+        </button>
+        <button id="tabLab2" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="orbit" class="w-4 h-4"></i>
+          <span>Lab 2: Atom Builder</span>
+        </button>
+      </div>
+
+      <!-- Curriculum Level Toggle: Secondary 1 (S1) vs Advanced -->
+      <div class="hidden lg:flex items-center bg-slate-900/90 px-2 py-1 rounded-xl border border-slate-800 text-xs">
+        <span class="text-slate-400 mr-2 font-medium">Level:</span>
+        <button id="btnLevelS1" class="px-2.5 py-1 rounded-md font-bold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+          S1 Secondary
+        </button>
+        <button id="btnLevelAdv" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition-all ml-1">
+          Advanced Physics
+        </button>
+      </div>
+
+      <!-- Audio Mute & Reset Buttons -->
+      <div class="flex items-center space-x-1.5 border-l border-slate-800 pl-2">
+        <button id="btnSound" class="p-2 rounded-xl glass-button text-cyan-400 hover:text-cyan-300" title="Toggle Sound FX">
+          <i data-lucide="volume-2" class="w-4 h-4"></i>
+        </button>
+        <button id="btnClear" class="px-3 py-2 rounded-xl glass-button text-rose-400 hover:text-rose-300 flex items-center space-x-1 text-xs font-semibold" title="Clear Build Area">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Clear</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Interactive Layout Grid -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden relative">
+    
+    <!-- LEFT PANEL: Draggable Palette & Quick Presets (Cols 1-3) -->
+    <aside class="lg:col-span-3 glass-panel border-r border-slate-800/80 flex flex-col z-20 overflow-y-auto p-4 space-y-4">
+      
+      <!-- Quark/Particle Palette Container -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+            <i data-lucide="hand" class="w-4 h-4 text-cyan-400"></i>
+            <span>Drag Particle Palette</span>
+          </h2>
+          <span class="text-[10px] text-cyan-400/80 bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/40">
+            Drag to Drop Zone
+          </span>
+        </div>
+
+        <!-- LAB 1: QUARK PALETTE -->
+        <div id="paletteLab1" class="grid grid-cols-2 gap-2.5">
+          <!-- Up Quark -->
+          <div data-particle-type="up" class="particle-card cursor-grab active:cursor-grabbing glass-button p-3 rounded-2xl border-l-4 border-l-pink-500 flex flex-col items-center justify-center space-y-1 group hover:border-pink-400 hover:shadow-lg hover:shadow-pink-500/20">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center font-bold text-lg text-white shadow-md group-hover:scale-105 transition-transform">
+              u
+            </div>
+            <span class="text-xs font-bold text-slate-200">Up Quark</span>
+            <span class="text-[11px] font-mono text-pink-400 font-semibold">+2/3 e</span>
+          </div>
+
+          <!-- Down Quark -->
+          <div data-particle-type="down" class="particle-card cursor-grab active:cursor-grabbing glass-button p-3 rounded-2xl border-l-4 border-l-cyan-400 flex flex-col items-center justify-center space-y-1 group hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-400/20">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-md group-hover:scale-105 transition-transform">
+              d
+            </div>
+            <span class="text-xs font-bold text-slate-200">Down Quark</span>
+            <span class="text-[11px] font-mono text-cyan-300 font-semibold">-1/3 e</span>
+          </div>
+
+          <!-- Anti-Up Quark (Advanced toggleable) -->
+          <div data-particle-type="antiup" class="particle-card anti-particle cursor-grab active:cursor-grabbing glass-button p-3 rounded-2xl border-l-4 border-l-purple-500 flex flex-col items-center justify-center space-y-1 group hover:border-purple-400">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center font-bold text-lg text-white shadow-md ring-2 ring-purple-400/40 group-hover:scale-105 transition-transform">
+              ū
+            </div>
+            <span class="text-xs font-bold text-slate-200">Anti-Up</span>
+            <span class="text-[11px] font-mono text-purple-300 font-semibold">-2/3 e</span>
+          </div>
+
+          <!-- Anti-Down Quark -->
+          <div data-particle-type="antidown" class="particle-card anti-particle cursor-grab active:cursor-grabbing glass-button p-3 rounded-2xl border-l-4 border-l-amber-500 flex flex-col items-center justify-center space-y-1 group hover:border-amber-400">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center font-bold text-lg text-white shadow-md ring-2 ring-amber-400/40 group-hover:scale-105 transition-transform">
+              d̄
+            </div>
+            <span class="text-xs font-bold text-slate-200">Anti-Down</span>
+            <span class="text-[11px] font-mono text-amber-300 font-semibold">+1/3 e</span>
+          </div>
+        </div>
+
+        <!-- LAB 2: ATOMIC SCALE PALETTE -->
+        <div id="paletteLab2" class="grid grid-cols-3 gap-2 hidden">
+          <!-- Proton -->
+          <div data-particle-type="proton" class="particle-card cursor-grab active:cursor-grabbing glass-button p-2.5 rounded-2xl border-l-4 border-l-rose-500 flex flex-col items-center justify-center space-y-1 group">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center font-bold text-xs text-white shadow-md group-hover:scale-105 transition-transform">
+              p⁺
+            </div>
+            <span class="text-[11px] font-bold text-slate-200">Proton</span>
+            <span class="text-[10px] font-mono text-rose-400">+1 e</span>
+          </div>
+
+          <!-- Neutron -->
+          <div data-particle-type="neutron" class="particle-card cursor-grab active:cursor-grabbing glass-button p-2.5 rounded-2xl border-l-4 border-l-emerald-400 flex flex-col items-center justify-center space-y-1 group">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center font-bold text-xs text-white shadow-md group-hover:scale-105 transition-transform">
+              n⁰
+            </div>
+            <span class="text-[11px] font-bold text-slate-200">Neutron</span>
+            <span class="text-[10px] font-mono text-emerald-300">0 e</span>
+          </div>
+
+          <!-- Electron -->
+          <div data-particle-type="electron" class="particle-card cursor-grab active:cursor-grabbing glass-button p-2.5 rounded-2xl border-l-4 border-l-amber-300 flex flex-col items-center justify-center space-y-1 group">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 to-yellow-500 flex items-center justify-center font-bold text-xs text-slate-950 shadow-md shadow-amber-300/30 group-hover:scale-105 transition-transform">
+              e⁻
+            </div>
+            <span class="text-[11px] font-bold text-slate-200">Electron</span>
+            <span class="text-[10px] font-mono text-amber-300">-1 e</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Build Presets Section -->
+      <div class="space-y-2 border-t border-slate-800 pt-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+          <i data-lucide="wand2" class="w-4 h-4 text-purple-400"></i>
+          <span>Quick Build Presets</span>
+        </h3>
+        <div id="presetsLab1" class="grid grid-cols-2 gap-1.5">
+          <button data-preset="proton" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-pink-500/50">
+            <span>Proton (uud)</span>
+            <span class="text-[10px] text-slate-400 font-mono">+1</span>
+          </button>
+          <button data-preset="neutron" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-cyan-500/50">
+            <span>Neutron (udd)</span>
+            <span class="text-[10px] text-slate-400 font-mono">0</span>
+          </button>
+          <button data-preset="pion_plus" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-purple-500/50">
+            <span>Pion+ (u d̄)</span>
+            <span class="text-[10px] text-slate-400 font-mono">+1</span>
+          </button>
+          <button data-preset="delta_plus_plus" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-pink-500/50">
+            <span>Delta++ (uuu)</span>
+            <span class="text-[10px] text-slate-400 font-mono">+2</span>
+          </button>
+        </div>
+
+        <div id="presetsLab2" class="grid grid-cols-2 gap-1.5 hidden">
+          <button data-preset="hydrogen_atom" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-cyan-500/50">
+            <span>Hydrogen (¹H)</span>
+            <span class="text-[10px] text-cyan-400">1p, 1e</span>
+          </button>
+          <button data-preset="deuterium" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-cyan-500/50">
+            <span>Deuterium (²H)</span>
+            <span class="text-[10px] text-cyan-400">1p, 1n, 1e</span>
+          </button>
+          <button data-preset="helium_4" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-amber-500/50">
+            <span>Helium-4 (⁴He)</span>
+            <span class="text-[10px] text-amber-400">2p, 2n, 2e</span>
+          </button>
+          <button data-preset="carbon_12" class="glass-button p-2 rounded-xl text-xs font-medium text-left flex items-center justify-between hover:border-emerald-500/50">
+            <span>Carbon-12 (¹²C)</span>
+            <span class="text-[10px] text-emerald-400">6p, 6n, 6e</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- S1 LEGO Brick Structural Analogy Card -->
+      <div id="legoAnalogyCard" class="bg-gradient-to-br from-indigo-950/70 to-slate-900/90 p-3.5 rounded-2xl border border-indigo-500/30 text-xs space-y-2 mt-auto">
+        <div class="flex items-center space-x-2 text-indigo-300 font-bold">
+          <i data-lucide="blocks" class="w-4 h-4 text-amber-400"></i>
+          <span>S1 LEGO Brick Model</span>
+        </div>
+        <p id="legoAnalogyText" class="text-slate-300 leading-relaxed text-[11px]">
+          Think of Quarks as magnetic LEGO studs! Up Quarks add <strong class="text-pink-400">+2/3</strong> magnetic charge, while Down Quarks add <strong class="text-cyan-300">-1/3</strong> charge. Combine them to build whole integer particles!
+        </p>
+      </div>
+
+    </aside>
+
+    <!-- CENTER PANEL: Interactive HTML5 Physics Canvas (Cols 4-9) -->
+    <section class="lg:col-span-6 relative flex flex-col h-full overflow-hidden bg-slate-950">
+      
+      <!-- Interactive Drop Area Top HUD Banner -->
+      <div class="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
+        <div class="glass-panel px-3.5 py-2 rounded-2xl flex items-center space-x-2 border border-slate-700/60 shadow-xl pointer-events-auto">
+          <div id="dropZoneStatusDot" class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+          <span id="dropZoneStatusText" class="text-xs font-semibold text-slate-200">
+            Hadron Confinement Bag
+          </span>
+        </div>
+
+        <!-- Live Net Charge Badge -->
+        <div class="glass-panel px-4 py-2 rounded-2xl border border-slate-700/60 shadow-xl flex items-center space-x-2 pointer-events-auto">
+          <span class="text-xs text-slate-400 font-medium">Net Charge Q:</span>
+          <span id="canvasNetChargeVal" class="text-base font-bold font-mono text-cyan-300">0 e</span>
+        </div>
+      </div>
+
+      <!-- Canvas Element -->
+      <div class="relative w-full h-full flex-1">
+        <canvas id="simCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+      </div>
+
+      <!-- Bottom Canvas Quick Instructions -->
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 glass-panel px-4 py-1.5 rounded-full text-[11px] text-slate-400 border border-slate-800 flex items-center space-x-2 shadow-lg">
+        <i data-lucide="move" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Drag particles inside to build, or drag outside to disintegrate!</span>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Math HUD, Identification & Stability Gauge (Cols 10-12) -->
+    <aside class="lg:col-span-3 glass-panel border-l border-slate-800/80 flex flex-col z-20 overflow-y-auto p-4 space-y-4">
+      
+      <!-- Live Particle Identification Banner -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+          <i data-lucide="microscope" class="w-4 h-4 text-emerald-400"></i>
+          <span>Lab Analysis & Math HUD</span>
+        </h3>
+
+        <div class="bg-gradient-to-br from-slate-900 to-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-inner">
+          <div class="flex items-start justify-between">
+            <div>
+              <span id="particleTypeBadge" class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                Empty Zone
+              </span>
+              <h2 id="particleNameHeading" class="text-xl font-extrabold text-slate-100 mt-1">
+                No Hadron Formed
+              </h2>
+            </div>
+            <div id="particleSymbolCircle" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl font-bold font-mono text-slate-400 shadow-md">
+              ?
+            </div>
+          </div>
+
+          <!-- Fractional / Integer Addition HUD Equation -->
+          <div class="space-y-1 border-t border-slate-800/80 pt-2.5">
+            <span class="text-[11px] text-slate-400 font-medium">Charge Math Calculation:</span>
+            <div id="mathHUDFormula" class="text-xs font-mono bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 text-cyan-300 font-semibold overflow-x-auto">
+              0 e = 0
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quark Confinement Rule / Nuclear Stability Gauge -->
+      <div id="gaugeCard" class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+        <div class="flex items-center justify-between text-xs">
+          <span id="gaugeTitle" class="font-bold text-slate-300 flex items-center space-x-1">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+            <span>Confinement State</span>
+          </span>
+          <span id="gaugeValueText" class="font-mono font-bold text-rose-400">Isolated</span>
+        </div>
+
+        <!-- Stability / Confinement Bar -->
+        <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+          <div id="gaugeBarFill" class="h-full rounded-full bg-rose-500 transition-all duration-300" style="width: 20%;"></div>
+        </div>
+
+        <p id="gaugeDescription" class="text-[11px] text-slate-400 leading-snug">
+          Quarks cannot exist alone due to strong force color confinement! Combine 3 quarks (Baryon) or 2 quark-antiquark pairs (Meson).
+        </p>
+      </div>
+
+      <!-- Guided Lab Challenges / Checklist -->
+      <div class="space-y-2 border-t border-slate-800 pt-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+          <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+          <span>Guided Lab Tasks</span>
+        </h3>
+        
+        <div class="space-y-2 text-xs">
+          <div id="task1" class="task-item flex items-center space-x-2.5 p-2 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div class="task-check w-4 h-4 rounded-md border border-slate-600 flex items-center justify-center text-cyan-400">
+              <i data-lucide="check" class="w-3 h-3 opacity-0"></i>
+            </div>
+            <span class="text-slate-300">Build a Proton (+1e)</span>
+          </div>
+
+          <div id="task2" class="task-item flex items-center space-x-2.5 p-2 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div class="task-check w-4 h-4 rounded-md border border-slate-600 flex items-center justify-center text-cyan-400">
+              <i data-lucide="check" class="w-3 h-3 opacity-0"></i>
+            </div>
+            <span class="text-slate-300">Build a Neutral Neutron</span>
+          </div>
+
+          <div id="task3" class="task-item flex items-center space-x-2.5 p-2 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <div class="task-check w-4 h-4 rounded-md border border-slate-600 flex items-center justify-center text-cyan-400">
+              <i data-lucide="check" class="w-3 h-3 opacity-0"></i>
+            </div>
+            <span class="text-slate-300">Build a Neutral Helium Atom</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subatomic Particle Physics Info Card -->
+      <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+        <div class="font-bold text-slate-300 flex items-center space-x-1">
+          <i data-lucide="info" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Standard Model Note</span>
+        </div>
+        <p id="standardModelNote">
+          Gluons act like tiny springs carrying color force (Red, Green, Blue) binding quarks together with extreme energy.
+        </p>
+      </div>
+
+    </aside>
+  </main>
+
+  <script>
+    /* ========================================================================
+       SUBATOMIC PHYSICS LAB - CANVAS & POINTER EVENT DRAG & DROP SIMULATOR
+       ======================================================================== */
+
+    // Web Audio Synthesizer for Interactive Sound Effects
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playDrag() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(240, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(380, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch(e) {}
+      }
+
+      playSnap() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+          osc1.frequency.setValueAtTime(523.25, now); // C5
+          osc2.frequency.setValueAtTime(659.25, now); // E5
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.25);
+          osc2.stop(now + 0.25);
+        } catch(e) {}
+      }
+
+      playPoof() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } catch(e) {}
+      }
+
+      playSuccess() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+            gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.3);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.06);
+            osc.stop(now + idx * 0.06 + 0.3);
+          });
+        } catch(e) {}
+      }
+    }
+
+    const sound = new SoundSynth();
+
+    // Global State Application Object
+    const state = {
+      currentLab: 'lab1', // 'lab1' (Quarks) or 'lab2' (Atoms)
+      levelMode: 'S1',    // 'S1' (Simplified) or 'ADV' (Advanced)
+      activeParticles: [], // Particles currently placed in the build zone
+      dragState: null,     // Current pointer drag object { type, x, y, isPalette, originalIndex }
+      poofParticles: [],   // Explosion visual effects
+      hoveredDropZone: false,
+      canvasWidth: 800,
+      canvasHeight: 600,
+      tasks: {
+        task1: false,
+        task2: false,
+        task3: false
+      }
+    };
+
+    // Particle Specifications
+    const PARTICLE_SPECS = {
+      up: { name: 'Up Quark', symbol: 'u', charge: 2/3, chargeStr: '+2/3', color: '#ff2a6d', radius: 24, type: 'quark' },
+      down: { name: 'Down Quark', symbol: 'd', charge: -1/3, chargeStr: '-1/3', color: '#05d9e8', radius: 24, type: 'quark' },
+      antiup: { name: 'Anti-Up Quark', symbol: 'ū', charge: -2/3, chargeStr: '-2/3', color: '#9b59b6', radius: 24, type: 'antiquark' },
+      antidown: { name: 'Anti-Down Quark', symbol: 'd̄', charge: 1/3, chargeStr: '+1/3', color: '#f39c12', radius: 24, type: 'antiquark' },
+      proton: { name: 'Proton', symbol: 'p⁺', charge: 1, chargeStr: '+1', color: '#ff4757', radius: 28, type: 'nucleon' },
+      neutron: { name: 'Neutron', symbol: 'n⁰', charge: 0, chargeStr: '0', color: '#2ed573', radius: 28, type: 'nucleon' },
+      electron: { name: 'Electron', symbol: 'e⁻', charge: -1, chargeStr: '-1', color: '#eccc68', radius: 16, type: 'lepton' }
+    };
+
+    // Periodic Table Elements Registry for Lab 2
+    const ELEMENT_REGISTRY = [
+      { z: 0, symbol: 'n', name: 'Free Neutrons / Unbound Mass' },
+      { z: 1, symbol: 'H', name: 'Hydrogen' },
+      { z: 2, symbol: 'He', name: 'Helium' },
+      { z: 3, symbol: 'Li', name: 'Lithium' },
+      { z: 4, symbol: 'Be', name: 'Beryllium' },
+      { z: 5, symbol: 'B', name: 'Boron' },
+      { z: 6, symbol: 'C', name: 'Carbon' },
+      { z: 7, symbol: 'N', name: 'Nitrogen' },
+      { z: 8, symbol: 'O', name: 'Oxygen' },
+      { z: 9, symbol: 'F', name: 'Fluorine' },
+      { z: 10, symbol: 'Ne', name: 'Neon' }
+    ];
+
+    // DOM Elements
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      state.canvasWidth = rect.width;
+      state.canvasHeight = rect.height;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Get Drop Zone Center & Radius
+    function getDropZone() {
+      const cx = state.canvasWidth / 2;
+      const cy = state.canvasHeight / 2;
+      const radius = Math.min(state.canvasWidth, state.canvasHeight) * 0.38;
+      return { cx, cy, radius };
+    }
+
+    // Check if Point (x, y) is inside the central Drop Zone
+    function isInsideDropZone(x, y) {
+      const { cx, cy, radius } = getDropZone();
+      const dist = Math.hypot(x - cx, y - cy);
+      return dist <= radius;
+    }
+
+    // HADRON IDENTIFIER (Lab 1)
+    function identifyHadron(particles) {
+      if (particles.length === 0) {
+        return { name: 'Empty Confinement', symbol: '∅', category: 'Empty Zone', valid: false, message: 'Drag quarks inside to build a hadron!' };
+      }
+
+      const types = particles.map(p => p.type).sort().join(',');
+
+      // 3-Quark Baryons
+      if (types === 'down,up,up') return { name: 'Proton', symbol: 'p⁺', category: 'Baryon', valid: true, desc: 'Stable subatomic nucleon (uud).' };
+      if (types === 'down,down,up') return { name: 'Neutron', symbol: 'n⁰', category: 'Baryon', valid: true, desc: 'Neutral nucleon particle (udd).' };
+      if (types === 'up,up,up') return { name: 'Delta++', symbol: 'Δ⁺⁺', category: 'Resonance Baryon', valid: true, desc: 'Highly energetic baryon (uuu).' };
+      if (types === 'down,down,down') return { name: 'Delta-', symbol: 'Δ⁻', category: 'Resonance Baryon', valid: true, desc: 'Negatively charged baryon (ddd).' };
+
+      // 2-Quark Mesons
+      if (types === 'antidown,up') return { name: 'Pion+', symbol: 'π⁺', category: 'Meson', valid: true, desc: 'Light meson (u + anti-d).' };
+      if (types === 'antiup,down') return { name: 'Pion-', symbol: 'π⁻', category: 'Meson', valid: true, desc: 'Light meson (anti-u + d).' };
+      if (types === 'antiup,up' || types === 'antidown,down') return { name: 'Neutral Pion', symbol: 'π⁰', category: 'Meson', valid: true, desc: 'Quark-antiquark neutral meson.' };
+
+      // Unstable / Non-standard quark combinations
+      if (particles.length === 3) {
+        return { name: 'Exotic Baryon State', symbol: 'B*', category: 'Unstable Baryon', valid: true, desc: 'Non-standard 3-quark baryon combination.' };
+      } else if (particles.length === 2) {
+        return { name: 'Unbound Quark Pair', symbol: 'q-q', category: 'Invalid Meson', valid: false, desc: 'Mesons require 1 quark and 1 anti-quark!' };
+      } else if (particles.length === 1) {
+        return { name: 'Isolated Quark', symbol: 'q', category: 'Confinement Violation', valid: false, desc: 'Quark confinement forbids single quarks in nature!' };
+      } else {
+        return { name: 'Multiquark / Cluster', symbol: 'X', category: 'Exotic Hadron', valid: false, desc: 'Complex quark state (>3 quarks).' };
+      }
+    }
+
+    // ATOM IDENTIFIER (Lab 2)
+    function identifyAtom(particles) {
+      const protons = particles.filter(p => p.type === 'proton').length;
+      const neutrons = particles.filter(p => p.type === 'neutron').length;
+      const electrons = particles.filter(p => p.type === 'electron').length;
+
+      if (protons === 0 && neutrons === 0 && electrons === 0) {
+        return { name: 'Empty Nucleus Zone', symbol: '∅', category: 'Empty Zone', netCharge: 0, isStable: true };
+      }
+
+      const elementData = ELEMENT_REGISTRY[Math.min(protons, 10)] || { z: protons, symbol: 'X', name: `Element ${protons}` };
+      const massNum = protons + neutrons;
+      const netCharge = protons - electrons;
+
+      let chargeState = 'Neutral Atom';
+      if (netCharge > 0) chargeState = `Positive Ion (+${netCharge})`;
+      if (netCharge < 0) chargeState = `Negative Ion (${netCharge})`;
+      if (protons === 0) chargeState = 'Free Neutrons/Electrons';
+
+      // Nuclear stability heuristic: N/P ratio
+      let isStable = true;
+      if (protons > 0) {
+        const ratio = neutrons / protons;
+        if (protons === 1) isStable = neutrons <= 2; // H1, H2 stable, H3 radioactive
+        else if (protons === 2) isStable = neutrons >= 1 && neutrons <= 2; // He3, He4 stable
+        else isStable = ratio >= 0.8 && ratio <= 1.5;
+      }
+
+      const symbolDisplay = protons > 0 ? `¹²${elementData.symbol}`.replace('12', massNum) : `${neutrons}n`;
+
+      return {
+        name: protons > 0 ? `${elementData.name}-${massNum}` : 'Free Particle Cluster',
+        symbol: symbolDisplay,
+        category: chargeState,
+        netCharge,
+        protons,
+        neutrons,
+        electrons,
+        isStable
+      };
+    }
+
+    // Update Dashboard Math & Status UI
+    function updateDashboardUI() {
+      const { cx, cy } = getDropZone();
+      const pCount = state.activeParticles.length;
+
+      // Lab 1 Quark Forge UI updates
+      if (state.currentLab === 'lab1') {
+        const hadronInfo = identifyHadron(state.activeParticles);
+        
+        // Sum charge
+        let sumCharge = 0;
+        let terms = [];
+        state.activeParticles.forEach(p => {
+          const spec = PARTICLE_SPECS[p.type];
+          sumCharge += spec.charge;
+          terms.push(spec.chargeStr);
+        });
+
+        const roundCharge = Math.round(sumCharge * 100) / 100;
+        const formattedCharge = roundCharge >= 0 ? `+${roundCharge}` : `${roundCharge}`;
+
+        document.getElementById('canvasNetChargeVal').innerText = `${formattedCharge} e`;
+        document.getElementById('particleNameHeading').innerText = hadronInfo.name;
+        document.getElementById('particleSymbolCircle').innerText = hadronInfo.symbol;
+        document.getElementById('particleTypeBadge').innerText = hadronInfo.category;
+
+        // Math HUD Formula display
+        if (terms.length > 0) {
+          document.getElementById('mathHUDFormula').innerText = `Q = (${terms.join(') + (')}) = ${formattedCharge} e`;
+        } else {
+          document.getElementById('mathHUDFormula').innerText = `Q = 0 e`;
+        }
+
+        // Confinement status bar
+        const barFill = document.getElementById('gaugeBarFill');
+        const gaugeText = document.getElementById('gaugeValueText');
+        const gaugeDesc = document.getElementById('gaugeDescription');
+
+        if (hadronInfo.valid) {
+          barFill.style.width = '100%';
+          barFill.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+          gaugeText.innerText = 'Color Neutral (Bound)';
+          gaugeText.className = 'font-mono font-bold text-emerald-400';
+          gaugeDesc.innerText = hadronInfo.desc;
+        } else {
+          barFill.style.width = pCount === 0 ? '0%' : '35%';
+          barFill.className = 'h-full rounded-full bg-rose-500 transition-all duration-300';
+          gaugeText.innerText = pCount === 0 ? 'Empty' : 'Violates Confinement';
+          gaugeText.className = 'font-mono font-bold text-rose-400';
+          gaugeDesc.innerText = hadronInfo.message || hadronInfo.desc;
+        }
+
+        // Check guided tasks
+        if (hadronInfo.name === 'Proton') completeTask('task1');
+        if (hadronInfo.name === 'Neutron') completeTask('task2');
+
+      } else {
+        // Lab 2 Atom Builder UI updates
+        const atomInfo = identifyAtom(state.activeParticles);
+
+        document.getElementById('canvasNetChargeVal').innerText = `${atomInfo.netCharge >= 0 ? '+' : ''}${atomInfo.netCharge} e`;
+        document.getElementById('particleNameHeading').innerText = atomInfo.name;
+        document.getElementById('particleSymbolCircle').innerText = atomInfo.symbol;
+        document.getElementById('particleTypeBadge').innerText = atomInfo.category;
+
+        document.getElementById('mathHUDFormula').innerText = 
+          `Protons (${atomInfo.protons}×+1) + Electrons (${atomInfo.electrons}×-1) = ${atomInfo.netCharge >= 0 ? '+' : ''}${atomInfo.netCharge} e`;
+
+        const barFill = document.getElementById('gaugeBarFill');
+        const gaugeText = document.getElementById('gaugeValueText');
+        const gaugeDesc = document.getElementById('gaugeDescription');
+
+        if (atomInfo.isStable && atomInfo.protons > 0) {
+          barFill.style.width = '100%';
+          barFill.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
+          gaugeText.innerText = 'Stable Isotope';
+          gaugeText.className = 'font-mono font-bold text-emerald-400';
+          gaugeDesc.innerText = 'Balanced nuclear strong binding forces overcome Coulomb repulsion.';
+        } else if (atomInfo.protons > 0) {
+          barFill.style.width = '45%';
+          barFill.className = 'h-full rounded-full bg-amber-500 transition-all duration-300';
+          gaugeText.innerText = 'Unstable / Radioactive';
+          gaugeText.className = 'font-mono font-bold text-amber-400';
+          gaugeDesc.innerText = 'Imbalanced Neutron/Proton ratio causes nuclear instability / beta decay risk.';
+        } else {
+          barFill.style.width = '0%';
+          barFill.className = 'h-full rounded-full bg-slate-700 transition-all duration-300';
+          gaugeText.innerText = 'No Nucleus';
+          gaugeText.className = 'font-mono font-bold text-slate-400';
+          gaugeDesc.innerText = 'Add Protons & Neutrons to build an atomic nucleus.';
+        }
+
+        // Task 3 completion: Helium Atom (2p, 2n, 2e)
+        if (atomInfo.protons === 2 && atomInfo.neutrons === 2 && atomInfo.electrons === 2) {
+          completeTask('task3');
+        }
+      }
+    }
+
+    function completeTask(taskId) {
+      if (!state.tasks[taskId]) {
+        state.tasks[taskId] = true;
+        const taskEl = document.getElementById(taskId);
+        if (taskEl) {
+          taskEl.querySelector('.task-check').classList.add('bg-cyan-500', 'border-cyan-400');
+          taskEl.querySelector('i').classList.remove('opacity-0');
+          sound.playSuccess();
+        }
+      }
+    }
+
+    // Create Poof Sparkle Explosion
+    function triggerPoof(x, y, color = '#38bdf8') {
+      sound.playPoof();
+      for (let i = 0; i < 18; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 6;
+        state.poofParticles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 3 + Math.random() * 4,
+          alpha: 1.0,
+          color
+        });
+      }
+    }
+
+    // Main Rendering Loop
+    let animationAngle = 0;
+
+    function render() {
+      ctx.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
+      animationAngle += 0.02;
+
+      const { cx, cy, radius } = getDropZone();
+
+      // Render Drop Zone Background Confinement Bag / Orbit Rings
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+
+      // Radial glow gradient for drop zone
+      const dropGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, radius);
+      if (state.hoveredDropZone) {
+        dropGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+        dropGrad.addColorStop(1, 'rgba(14, 165, 233, 0.08)');
+      } else {
+        dropGrad.addColorStop(0, 'rgba(30, 41, 59, 0.4)');
+        dropGrad.addColorStop(1, 'rgba(15, 23, 42, 0.2)');
+      }
+      ctx.fillStyle = dropGrad;
+      ctx.fill();
+
+      // Outer dashed glowing ring boundary
+      ctx.lineWidth = state.hoveredDropZone ? 3 : 2;
+      ctx.strokeStyle = state.hoveredDropZone ? '#38bdf8' : 'rgba(148, 163, 184, 0.3)';
+      ctx.setLineDash([8, 6]);
+      ctx.stroke();
+      ctx.restore();
+
+      // LAB 2: Render Electron Shell Orbit Rings (K Shell, L Shell)
+      if (state.currentLab === 'lab2') {
+        const kRadius = radius * 0.45;
+        const lRadius = radius * 0.8;
+
+        [kRadius, lRadius].forEach((r, idx) => {
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(236, 204, 104, 0.25)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Shell label text
+          ctx.fillStyle = 'rgba(236, 204, 104, 0.5)';
+          ctx.font = '10px Inter, sans-serif';
+          ctx.fillText(idx === 0 ? 'K-Shell (2 max)' : 'L-Shell (8 max)', cx + r + 6, cy + 4);
+        });
+      }
+
+      // LAB 1: Render Wobbly Gluon Harmonic Spring Lines between Quarks
+      if (state.currentLab === 'lab1' && state.activeParticles.length > 1) {
+        for (let i = 0; i < state.activeParticles.length; i++) {
+          for (let j = i + 1; j < state.activeParticles.length; j++) {
+            const p1 = state.activeParticles[i];
+            const p2 = state.activeParticles[j];
+            drawGluonSpring(p1.x, p1.y, p2.x, p2.y);
+          }
+        }
+      }
+
+      // LAB 2: Nucleus Clumping Physics Simulation (Spring Attraction for P & N)
+      if (state.currentLab === 'lab2') {
+        const nucleons = state.activeParticles.filter(p => p.type === 'proton' || p.type === 'neutron');
+        // Gently pull nucleons toward nucleus center cx, cy
+        nucleons.forEach((p, idx) => {
+          if (state.dragState && state.dragState.particle === p) return; // skip if currently dragging
+
+          const targetAngle = (idx / nucleons.length) * Math.PI * 2 + animationAngle * 0.2;
+          const targetDist = Math.min(25 * Math.sqrt(nucleons.length), radius * 0.35);
+          const tx = cx + Math.cos(targetAngle) * targetDist;
+          const ty = cy + Math.sin(targetAngle) * targetDist;
+
+          p.x += (tx - p.x) * 0.08;
+          p.y += (ty - p.y) * 0.08;
+        });
+
+        // Electrons orbit positioning around shells
+        const electrons = state.activeParticles.filter(p => p.type === 'electron');
+        electrons.forEach((p, idx) => {
+          if (state.dragState && state.dragState.particle === p) return;
+
+          const shellRadius = idx < 2 ? radius * 0.45 : radius * 0.8;
+          const speed = idx < 2 ? 0.03 : -0.02;
+          const angle = animationAngle * speed * 30 + (idx * Math.PI * 2 / electrons.length);
+
+          p.x = cx + Math.cos(angle) * shellRadius;
+          p.y = cy + Math.sin(angle) * shellRadius;
+        });
+      }
+
+      // Render Active Particles in the Canvas
+      state.activeParticles.forEach(p => {
+        drawParticle(p.x, p.y, p.type, 1.0);
+      });
+
+      // Render Active Drag Ghost Particle under Cursor
+      if (state.dragState) {
+        drawParticle(state.dragState.x, state.dragState.y, state.dragState.type, 0.95, true);
+      }
+
+      // Render Poof Particles
+      for (let i = state.poofParticles.length - 1; i >= 0; i--) {
+        const p = state.poofParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.04;
+        p.radius *= 0.95;
+
+        if (p.alpha <= 0) {
+          state.poofParticles.splice(i, 1);
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.alpha;
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // Render Individual Particle with Glow & Text
+    function drawParticle(x, y, type, opacity = 1.0, isDragging = false) {
+      const spec = PARTICLE_SPECS[type];
+      if (!spec) return;
+
+      ctx.save();
+      ctx.globalAlpha = opacity;
+
+      // Outer glow
+      ctx.shadowColor = spec.color;
+      ctx.shadowBlur = isDragging ? 25 : 12;
+
+      // Particle Circle Body
+      ctx.beginPath();
+      ctx.arc(x, y, spec.radius, 0, Math.PI * 2);
+      
+      const grad = ctx.createRadialGradient(x - spec.radius*0.3, y - spec.radius*0.3, 2, x, y, spec.radius);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, spec.color);
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Border ring
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+
+      // Particle Text Label
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${spec.radius * 0.9}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(spec.symbol, x, y + 1);
+
+      // Standard Model / S1 Sub-Quark details for Nucleons in Lab 2
+      if (state.currentLab === 'lab2' && (type === 'proton' || type === 'neutron')) {
+        const subText = type === 'proton' ? 'uud' : 'udd';
+        ctx.font = '9px JetBrains Mono, monospace';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillText(subText, x, y + spec.radius + 10);
+      }
+
+      ctx.restore();
+    }
+
+    // Render Gluon Harmonic Wave Lines
+    function drawGluonSpring(x1, y1, x2, y2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx);
+
+      ctx.save();
+      ctx.translate(x1, y1);
+      ctx.rotate(angle);
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+
+      const coils = Math.floor(dist / 12);
+      const amplitude = 8;
+
+      for (let i = 0; i <= dist; i += 2) {
+        const py = Math.sin((i / dist) * Math.PI * coils * 2 + animationAngle * 4) * amplitude;
+        ctx.lineTo(i, py);
+      }
+
+      ctx.strokeStyle = '#e056fd';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#e056fd';
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Pointer Events Interaction (Mouse, Touch, Stylus)
+    function setupDragAndDrop() {
+      // Palette item pointer events initiation
+      document.querySelectorAll('.particle-card').forEach(card => {
+        card.addEventListener('pointerdown', (e) => {
+          sound.init();
+          const type = card.dataset.particleType;
+          const rect = canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+
+          state.dragState = {
+            type,
+            x,
+            y,
+            isPaletteOrigin: true,
+            particle: null
+          };
+
+          sound.playDrag();
+          e.preventDefault();
+        });
+      });
+
+      // Canvas pointerdown (picking up existing placed particles)
+      canvas.addEventListener('pointerdown', (e) => {
+        sound.init();
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check if clicked on existing active particle (topmost first)
+        for (let i = state.activeParticles.length - 1; i >= 0; i--) {
+          const p = state.activeParticles[i];
+          const spec = PARTICLE_SPECS[p.type];
+          if (Math.hypot(p.x - x, p.y - y) <= spec.radius * 1.3) {
+            // Pick up particle
+            state.dragState = {
+              type: p.type,
+              x: p.x,
+              y: p.y,
+              isPaletteOrigin: false,
+              particle: p,
+              originalIndex: i
+            };
+
+            // Remove from active array while dragging
+            state.activeParticles.splice(i, 1);
+            updateDashboardUI();
+            sound.playDrag();
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+      });
+
+      // Global window pointermove for smooth dragging across elements
+      window.addEventListener('pointermove', (e) => {
+        if (!state.dragState) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        state.dragState.x = x;
+        state.dragState.y = y;
+
+        state.hoveredDropZone = isInsideDropZone(x, y);
+      });
+
+      // Global window pointerup (dropping or disintegrating)
+      window.addEventListener('pointerup', (e) => {
+        if (!state.dragState) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (isInsideDropZone(x, y)) {
+          // Snap inside drop zone
+          state.activeParticles.push({
+            type: state.dragState.type,
+            x: x,
+            y: y
+          });
+          sound.playSnap();
+        } else {
+          // Disintegrate particle outside drop zone with Poof!
+          const color = PARTICLE_SPECS[state.dragState.type]?.color || '#38bdf8';
+          triggerPoof(x, y, color);
+        }
+
+        state.dragState = null;
+        state.hoveredDropZone = false;
+        updateDashboardUI();
+      });
+    }
+
+    // Quick Build Presets Loader
+    function applyPreset(presetKey) {
+      sound.init();
+      const { cx, cy } = getDropZone();
+      state.activeParticles = [];
+
+      const spawnCircle = (types) => {
+        const count = types.length;
+        types.forEach((t, i) => {
+          const angle = (i / count) * Math.PI * 2;
+          const radius = count > 1 ? 50 : 0;
+          state.activeParticles.push({
+            type: t,
+            x: cx + Math.cos(angle) * radius,
+            y: cy + Math.sin(angle) * radius
+          });
+        });
+      };
+
+      if (presetKey === 'proton') spawnCircle(['up', 'up', 'down']);
+      if (presetKey === 'neutron') spawnCircle(['up', 'down', 'down']);
+      if (presetKey === 'pion_plus') spawnCircle(['up', 'antidown']);
+      if (presetKey === 'delta_plus_plus') spawnCircle(['up', 'up', 'up']);
+
+      if (presetKey === 'hydrogen_atom') {
+        spawnCircle(['proton', 'electron']);
+      }
+      if (presetKey === 'deuterium') {
+        spawnCircle(['proton', 'neutron', 'electron']);
+      }
+      if (presetKey === 'helium_4') {
+        spawnCircle(['proton', 'proton', 'neutron', 'neutron', 'electron', 'electron']);
+      }
+      if (presetKey === 'carbon_12') {
+        const particles = [];
+        for (let i = 0; i < 6; i++) particles.push('proton');
+        for (let i = 0; i < 6; i++) particles.push('neutron');
+        for (let i = 0; i < 6; i++) particles.push('electron');
+        spawnCircle(particles);
+      }
+
+      sound.playSnap();
+      updateDashboardUI();
+    }
+
+    // Lab Mode Tab Switcher
+    function switchLab(labId) {
+      state.currentLab = labId;
+      state.activeParticles = [];
+
+      const tab1 = document.getElementById('tabLab1');
+      const tab2 = document.getElementById('tabLab2');
+      const palette1 = document.getElementById('paletteLab1');
+      const palette2 = document.getElementById('paletteLab2');
+      const presets1 = document.getElementById('presetsLab1');
+      const presets2 = document.getElementById('presetsLab2');
+      const statusText = document.getElementById('dropZoneStatusText');
+
+      if (labId === 'lab1') {
+        tab1.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-purple-600 text-white shadow-md';
+        tab2.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50';
+        palette1.classList.remove('hidden');
+        palette2.classList.add('hidden');
+        presets1.classList.remove('hidden');
+        presets2.classList.add('hidden');
+        statusText.innerText = 'Hadron Confinement Sphere';
+        document.getElementById('gaugeTitle').innerHTML = '<i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i><span>Confinement State</span>';
+        document.getElementById('legoAnalogyText').innerText = 'Think of Quarks as magnetic LEGO studs! Up Quarks add +2/3 magnetic charge, while Down Quarks add -1/3 charge. Combine them to build whole integer particles!';
+      } else {
+        tab2.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-cyan-600 text-white shadow-md';
+        tab1.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50';
+        palette2.classList.remove('hidden');
+        palette1.classList.add('hidden');
+        presets2.classList.remove('hidden');
+        presets1.classList.add('hidden');
+        statusText.innerText = 'Atomic Orbital Drop Zone';
+        document.getElementById('gaugeTitle').innerHTML = '<i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i><span>Nuclear Stability</span>';
+        document.getElementById('legoAnalogyText').innerText = 'At the Atomic scale, Protons (+1) and Neutrons (0) cluster inside the nucleus, while light Electrons (-1) orbit in quantum energy shell rings!';
+      }
+
+      updateDashboardUI();
+    }
+
+    // Attach Event Listeners
+    function initEvents() {
+      document.getElementById('tabLab1').addEventListener('click', () => switchLab('lab1'));
+      document.getElementById('tabLab2').addEventListener('click', () => switchLab('lab2'));
+
+      // Level switchers
+      const btnS1 = document.getElementById('btnLevelS1');
+      const btnAdv = document.getElementById('btnLevelAdv');
+
+      btnS1.addEventListener('click', () => {
+        state.levelMode = 'S1';
+        btnS1.className = 'px-2.5 py-1 rounded-md font-bold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        btnAdv.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition-all ml-1';
+        document.querySelectorAll('.anti-particle').forEach(el => el.classList.add('hidden'));
+      });
+
+      btnAdv.addEventListener('click', () => {
+        state.levelMode = 'ADV';
+        btnAdv.className = 'px-2.5 py-1 rounded-md font-bold transition-all bg-purple-500/20 text-purple-400 border border-purple-500/40';
+        btnS1.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-slate-200 transition-all';
+        document.querySelectorAll('.anti-particle').forEach(el => el.classList.remove('hidden'));
+      });
+
+      // Initially hide anti-particles in S1 mode
+      document.querySelectorAll('.anti-particle').forEach(el => el.classList.add('hidden'));
+
+      // Clear Canvas Button
+      document.getElementById('btnClear').addEventListener('click', () => {
+        const { cx, cy } = getDropZone();
+        state.activeParticles.forEach(p => triggerPoof(p.x, p.y, PARTICLE_SPECS[p.type]?.color));
+        state.activeParticles = [];
+        updateDashboardUI();
+      });
+
+      // Sound FX Mute Toggle Button
+      document.getElementById('btnSound').addEventListener('click', () => {
+        sound.muted = !sound.muted;
+        const icon = document.getElementById('btnSound').querySelector('i');
+        if (sound.muted) {
+          icon.setAttribute('data-lucide', 'volume-x');
+          document.getElementById('btnSound').classList.add('text-rose-400');
+        } else {
+          icon.setAttribute('data-lucide', 'volume-2');
+          document.getElementById('btnSound').classList.remove('text-rose-400');
+        }
+        lucide.createIcons();
+      });
+
+      // Quick Build Preset Buttons
+      document.querySelectorAll('[data-preset]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          applyPreset(btn.dataset.preset);
+        });
+      });
+    }
+
+    // Startup Window Onload Handler
+    window.onload = function() {
+      lucide.createIcons();
+      resizeCanvas();
+      setupDragAndDrop();
+      initEvents();
+      updateDashboardUI();
+      render();
+    };
+  </script>
+</body>
+</html>
